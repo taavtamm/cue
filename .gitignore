@@ -5,3 +5,6 @@ DerivedData/
 xcuserdata/
 Web/node_modules/
 .DS_Store
+
+# Real decks used for local testing only; never committed.
+fixtures/private/
