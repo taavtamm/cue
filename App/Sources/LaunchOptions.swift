@@ -20,4 +20,7 @@ enum LaunchOptions {
     static var showDisplays: Bool { UserDefaults.standard.bool(forKey: "displays") }
 
     static var startSlide: Int { max(0, UserDefaults.standard.integer(forKey: "slide") - 1) }
+
+    /// `-settings YES` (Debug): open the Settings window at launch, for snapshots.
+    static var showSettings: Bool { UserDefaults.standard.bool(forKey: "settings") }
 }

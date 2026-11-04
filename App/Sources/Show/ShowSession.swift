@@ -28,7 +28,7 @@ final class ShowSession {
     private let focusState: FocusHint.StateProvider
     private let broadcaster: ShowBroadcaster
     private let keys = ShowKeyMap.standard
-    private let cursor = CursorHider()
+    private let cursor = CursorHider(delay: .seconds(CueSettings.shared.cursorHideDelay))
     private let displaySleep = DisplaySleepAssertion()
     /// Open surfaces keyed by display id (or a rehearsal slot name).
     private(set) var surfaces: [String: ShowSurface] = [:]
@@ -49,7 +49,8 @@ final class ShowSession {
         broadcaster = ShowBroadcaster(stateCounts: controller.stateCounts)
         let sidecar = (try? CueSidecar.load(from: deck.sidecarURL)) ?? CueSidecar()
         let target = sidecar.targetDuration ?? ShowPace.defaultTarget(
-            slideCount: deck.structure.slides.count, rehearsed: Array(sidecar.rehearsalTimings.values))
+            slideCount: deck.structure.slides.count, rehearsed: Array(sidecar.rehearsalTimings.values),
+            minutesPerSlide: CueSettings.shared.minutesPerSlide)
         model = PresenterModel(controller: controller, structure: deck.structure, targetDuration: target)
         model.renderingSummary = source.allowedHosts.isEmpty
             ? "Native HTML · offline"
@@ -60,7 +61,9 @@ final class ShowSession {
     // MARK: Start and end
 
     func start() {
-        displaySleep.begin(reason: "Presenting \(deck.fileURL.lastPathComponent)")
+        if CueSettings.shared.keepsDisplayAwake {
+            displaySleep.begin(reason: "Presenting \(deck.fileURL.lastPathComponent)")
+        }
         broadcaster.keepsAnimationsInSync = displays.keepsAnimationsInSync
         savedPresentationOptions = NSApp.presentationOptions
         NSApp.presentationOptions = [.hideDock, .hideMenuBar]

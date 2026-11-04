@@ -11,6 +11,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private static let shared = AppDelegate()
     private var deckWindows: [DeckWindowController] = []
     private let imports = ImportCoordinator()
+    private lazy var welcome = WelcomeWindowController(actions: WelcomeActions(
+        newPresentation: { [weak self] in self?.newDocument(nil) },
+        open: { [weak self] in self?.openDocument(nil) },
+        openURL: { [weak self] url in self?.open(url) }
+    ))
+    private var settings: SettingsWindowController?
 
     static func main() {
         let app = NSApplication.shared
@@ -28,8 +34,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 if LaunchOptions.showDisplays { deck.showDisplays(nil) }
             }
         } else if deckWindows.isEmpty {
-            openDocument(nil)
+            showWelcome(nil)
         }
+        #if DEBUG
+        if LaunchOptions.showSettings { showSettings(nil) }
+        #endif
         NSApp.activate()
     }
 
@@ -38,6 +47,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+
+    /// Clicking the Dock icon with nothing open brings the Welcome window back.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        if !hasVisibleWindows && deckWindows.isEmpty { showWelcome(nil) }
+        return true
+    }
+
+    @objc func newDocument(_ sender: Any?) {
+        NewPresentation.create { [weak self] url in self?.open(url) }
+    }
+
+    @objc func showWelcome(_ sender: Any?) {
+        welcome.showWindow(nil)
+        welcome.window?.makeKeyAndOrderFront(nil)
+    }
+
+    @objc func showSettings(_ sender: Any?) {
+        let controller = settings ?? SettingsWindowController()
+        settings = controller
+        controller.showWindow(nil)
+        controller.window?.makeKeyAndOrderFront(nil)
+    }
 
     @objc func openDocument(_ sender: Any?) {
         DeckOpener.chooseDecks { [weak self] urls in urls.forEach { self?.open($0) } }
@@ -62,10 +93,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let document = try DeckDocument(contentsOf: url)
             let controller = DeckWindowController(deck: document)
             controller.onClose = { [weak self, weak controller] in
-                self?.deckWindows.removeAll { $0 === controller }
+                guard let self else { return }
+                deckWindows.removeAll { $0 === controller }
+                if deckWindows.isEmpty { showWelcome(nil) } // The last deck closed: back to Welcome.
             }
             deckWindows.append(controller)
             controller.showWindow(nil)
+            welcome.close()
             NSDocumentController.shared.noteNewRecentDocumentURL(url)
             if let slide { controller.present(fromSlide: slide) }
         } catch {

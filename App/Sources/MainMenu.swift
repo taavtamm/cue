@@ -21,6 +21,8 @@ enum MainMenu {
         let about = #selector(NSApplication.orderFrontStandardAboutPanel(_:))
         menu.addItem(withTitle: "About Cue", action: about, keyEquivalent: "")
         menu.addItem(.separator())
+        menu.addItem(withTitle: "Settings…", action: #selector(AppDelegate.showSettings(_:)), keyEquivalent: ",")
+        menu.addItem(.separator())
         menu.addItem(withTitle: "Hide Cue", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         menu.addItem(withTitle: "Quit Cue", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         return menu
@@ -28,6 +30,7 @@ enum MainMenu {
 
     private static func fileMenu() -> NSMenu {
         let menu = NSMenu(title: "File")
+        menu.addItem(withTitle: "New Presentation…", action: #selector(AppDelegate.newDocument(_:)), keyEquivalent: "n")
         menu.addItem(withTitle: "Open…", action: #selector(AppDelegate.openDocument(_:)), keyEquivalent: "o")
         menu.addItem(submenu(RecentDecksMenu.make()))
         menu.addItem(.separator())
@@ -69,6 +72,9 @@ enum MainMenu {
     private static func windowMenu() -> NSMenu {
         let menu = NSMenu(title: "Window")
         menu.addItem(withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "Welcome to Cue", action: #selector(AppDelegate.showWelcome(_:)),
+                     keyEquivalent: "1").keyEquivalentModifierMask = [.command, .shift]
         return menu
     }
 

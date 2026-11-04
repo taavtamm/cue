@@ -61,11 +61,14 @@ public struct ShowPace: Sendable, Equatable {
     }
 
     /// A target when the deck doesn't set one: rehearsed time if there is
-    /// any, else two minutes a slide rounded up to five minutes.
-    public static func defaultTarget(slideCount: Int, rehearsed: [Double] = []) -> TimeInterval {
+    /// any, else `minutesPerSlide` a slide (Settings, two by default)
+    /// rounded up to five minutes.
+    public static func defaultTarget(
+        slideCount: Int, rehearsed: [Double] = [], minutesPerSlide: Double = 2
+    ) -> TimeInterval {
         let total = rehearsed.reduce(0, +)
         if total > 0 { return total }
-        let minutes = max(5, Int((Double(slideCount * 2) / 5).rounded(.up)) * 5)
+        let minutes = max(5, Int((Double(slideCount) * minutesPerSlide / 5).rounded(.up)) * 5)
         return TimeInterval(minutes * 60)
     }
 }

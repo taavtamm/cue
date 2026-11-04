@@ -12,8 +12,10 @@ final class DisplayCoordinator {
     /// The screen selected in the Displays window.
     var selectedID: String?
     /// Line mirrored animations up after each slide change.
-    var keepsAnimationsInSync = UserDefaults.standard.object(forKey: Keys.sync) as? Bool ?? true {
-        didSet { UserDefaults.standard.set(keepsAnimationsInSync, forKey: Keys.sync) }
+    /// The same setting as Settings › Presenting, so the two always agree.
+    var keepsAnimationsInSync: Bool {
+        get { CueSettings.shared.keepsAnimationsInSync }
+        set { CueSettings.shared.keepsAnimationsInSync = newValue }
     }
     /// Set by a running show. Mid-show, new screens get their remembered role or Off.
     @ObservationIgnored var onLayoutChange: (() -> Void)?
@@ -25,7 +27,6 @@ final class DisplayCoordinator {
     private let readDisplays: @MainActor () -> [DisplayInfo]
     @ObservationIgnored private var observer: NSObjectProtocol?
 
-    private enum Keys { static let sync = "keepsAnimationsInSync" }
 
     init(sidecarURL: URL, readDisplays: @escaping @MainActor () -> [DisplayInfo] = ScreenCatalog.displays) {
         self.sidecarURL = sidecarURL
