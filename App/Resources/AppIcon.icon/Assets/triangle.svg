@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Rounded play triangle from CueIcon.dc.html, rescaled from its 824px tile to 1024. -->
+  <polygon points="397.7,310.7 397.7,733.2 751.8,521.9" fill="#ffffff" stroke="#ffffff"
+           stroke-width="104.4" stroke-linejoin="round"/>
+</svg>

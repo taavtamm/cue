@@ -1,0 +1,140 @@
+import AppKit
+import CueCore
+import WebKit
+
+/// One surface that shows the real deck: the stage, the presenter's current
+/// or next slide, an editor canvas, a thumbnail. Each owns one WKWebView.
+///
+/// Swift is the source of truth: call `show(_:finished:)` and the page
+/// follows. Events from the page (ready, auto-builds, passthrough position)
+/// arrive through `onEvent`.
+@MainActor
+public final class SlideRenderer: NSView {
+    public let surface: SurfaceKind
+    public var onEvent: ((BridgeEvent) -> Void)?
+    public private(set) var isReady = false
+    public private(set) var slideCount = 0
+
+    private var webView: WKWebView?
+    private let messages = BridgeMessageHandler()
+    private let policy = SandboxPolicy()
+    private let cover = NSView()
+    private var source: DeckSource?
+    private var position = ShowPosition.start
+    private var finished = false
+    private var paused = false
+
+    public init(surface: SurfaceKind) {
+        self.surface = surface
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.backgroundColor = NSColor.black.cgColor
+        cover.wantsLayer = true
+        cover.isHidden = true
+        messages.onEvent = { [weak self] event in self?.handle(event) }
+        policy.onContentProcessTerminated = { [weak self] in self?.reload() }
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("SlideRenderer is created in code") }
+
+    // MARK: Loading
+
+    /// Loads (or reloads) a deck. Shows `position` once the page is ready.
+    public func load(_ source: DeckSource, at position: ShowPosition = .start) async throws {
+        self.source = source
+        self.position = position
+        isReady = false
+        let rules = try await NetworkRules.compile(allowedHosts: source.allowedHosts)
+        let webView = WebViewFactory.make(
+            source: source, surface: surface, rules: rules, messages: messages, policy: policy
+        )
+        install(webView)
+        webView.load(URLRequest(url: source.pageURL))
+    }
+
+    private func install(_ newWebView: WKWebView) {
+        webView?.removeFromSuperview()
+        webView = newWebView
+        newWebView.frame = bounds
+        newWebView.autoresizingMask = [.width, .height]
+        newWebView.alphaValue = 0 // Revealed on `ready`, so the stacked, unstyled page never flashes.
+        addSubview(newWebView, positioned: .below, relativeTo: nil)
+        cover.frame = bounds
+        cover.autoresizingMask = [.width, .height]
+        addSubview(cover)
+    }
+
+    private func reload() {
+        guard let source else { return }
+        Task { try? await load(source, at: position) }
+    }
+
+    // MARK: Commands
+
+    public func show(_ position: ShowPosition, finished: Bool = false) {
+        self.position = position
+        self.finished = finished
+        guard isReady else { return } // Applied on ready.
+        send(.show(position, finished: finished))
+    }
+
+    public func setCover(black: Bool = false, white: Bool = false) {
+        let state: ScreenCover = black ? .black : (white ? .white : .none)
+        cover.layer?.backgroundColor = state.color?.cgColor
+        cover.isHidden = state == .none
+    }
+
+    /// Pauses Web Animations and media in the page. Scripts with their own
+    /// requestAnimationFrame loops keep running.
+    public func setPaused(_ paused: Bool) {
+        self.paused = paused
+        guard let webView, isReady else { return }
+        send(.setPaused(paused))
+        webView.setAllMediaPlaybackSuspended(paused)
+    }
+
+    /// A picture of the surface as rendered right now, cover included.
+    public func snapshot() async throws -> NSImage {
+        guard let webView, isReady else { throw SlideRendererError.notReady }
+        if !cover.isHidden, let color = cover.layer?.backgroundColor.flatMap(NSColor.init(cgColor:)) {
+            return NSImage(size: bounds.size, flipped: false) { rect in
+                color.setFill()
+                rect.fill()
+                return true
+            }
+        }
+        return try await webView.takeSnapshot(configuration: nil)
+    }
+
+    /// Runs a function body in the bridge world. For tests and diagnostics.
+    public func evaluateInBridge(_ functionBody: String) async throws -> Any? {
+        guard let webView else { return nil }
+        return try await webView.callAsyncJavaScript(functionBody, contentWorld: BridgeScript.world)
+    }
+
+    /// Runs a function body in the deck's own world, as a deck script would. Tests only.
+    func evaluateInPage(_ functionBody: String) async throws -> Any? {
+        guard let webView else { return nil }
+        return try await webView.callAsyncJavaScript(functionBody, contentWorld: .page)
+    }
+
+    private func send(_ command: BridgeCommand) {
+        guard let webView else { return }
+        let js = "window.__cue.receive(\(JSONText.string(command.wireMessage)))"
+        webView.evaluateJavaScript(js, in: nil, in: BridgeScript.world) { _ in }
+    }
+
+    // MARK: Events
+
+    private func handle(_ event: BridgeEvent) {
+        if case .ready(let count) = event {
+            isReady = true
+            slideCount = count
+            send(.show(position, finished: finished))
+            if paused { setPaused(true) }
+            webView?.alphaValue = 1
+        }
+        onEvent?(event)
+    }
+}

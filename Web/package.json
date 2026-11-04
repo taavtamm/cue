@@ -1,0 +1,12 @@
+{
+  "name": "cue-web",
+  "private": true,
+  "description": "Builds the JavaScript bundles Cue ships. Output is checked in, so app builds never need Node.",
+  "scripts": {
+    "build": "esbuild src/parse.js --bundle --format=iife --minify --target=safari17 --outfile=../Sources/CueCore/Resources/parse5.bundle.js"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.0",
+    "parse5": "8.1.0"
+  }
+}

@@ -1,0 +1,18 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="hz:slide-selector" content=".slide">
+<meta name="hz:canvas-width" content="1600">
+<meta name="hz:canvas-height" content="900">
+<title>Declared selector matches nothing in the body</title>
+</head>
+<body>
+<div class="deck-fit"><div class="deck-scaler">
+<section class="deck-slide" id="a" data-label="Alpha" data-speaker-notes="Notes A"><h1>Alpha</h1></section>
+<section class="deck-slide" id="b" data-label="Beta"><h1>Beta</h1></section>
+</div></div>
+<script type="application/json" id="deck-motion">{"slides":[{"steps":[{"hidden":[],"events":[]},{"hidden":[],"events":[{"id":"f1","effect":"rise","dir":"in"}]}],"embeds":[]},{"steps":[{"hidden":[],"events":[]}],"embeds":[{"id":"e1","srcdoc":"<p>x</p>"}]}]}</script>
+<script>(function(e){ /* player */ })(JSON.parse(document.getElementById("deck-motion").textContent));</script>
+</body>
+</html>

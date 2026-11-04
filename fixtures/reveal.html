@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Reveal deck</title>
+</head>
+<body>
+<div class="reveal">
+  <div class="slides">
+    <section><h1>Reveal title</h1><aside class="notes">Welcome everyone.</aside></section>
+    <section>
+      <section><h2>Vertical one</h2></section>
+      <section data-notes="Down we go."><h2>Vertical two</h2></section>
+    </section>
+    <section>
+      <h2>Fragments</h2>
+      <p class="fragment">A</p>
+      <p class="fragment" data-fragment-index="2">B</p>
+      <p class="fragment" data-fragment-index="2">B too</p>
+    </section>
+  </div>
+</div>
+<script src="reveal.js"></script>
+<script>Reveal.initialize({ width: 1280, height: 720, hash: true });</script>
+</body>
+</html>

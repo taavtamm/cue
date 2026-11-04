@@ -1,0 +1,51 @@
+name: Cue
+options:
+  bundleIdPrefix: app.cue
+  deploymentTarget: { macOS: "27.0" }
+  createIntermediateGroups: true
+packages:
+  CuePackage: { path: . }
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MACOSX_DEPLOYMENT_TARGET: "27.0"
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGN_STYLE: Manual
+    ENABLE_HARDENED_RUNTIME: YES
+targets:
+  Cue:
+    type: application
+    platform: macOS
+    sources:
+      - App/Sources
+      - App/Resources
+    dependencies:
+      - package: CuePackage
+        product: CueCore
+      - package: CuePackage
+        product: CueRender
+      - package: CuePackage
+        product: CueUI
+    entitlements:
+      path: App/Cue.entitlements
+      properties:
+        # parse5 runs in JavaScriptCore; without JIT it is ~20x slower.
+        # Deck JavaScript never runs here, only inside WKWebView.
+        com.apple.security.cs.allow-jit: true
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: Cue
+        CFBundleShortVersionString: "0.1"
+        LSApplicationCategoryType: public.app-category.productivity
+        NSHighResolutionCapable: true
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: HTML Presentation
+            CFBundleTypeRole: Editor
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [public.html]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.cue.Cue
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: NO

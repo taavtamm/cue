@@ -1,0 +1,75 @@
+{
+  "fill": {
+    "linear-gradient": [
+      "srgb:0.20000,0.20000,0.23137,1.00000",
+      "srgb:0.01961,0.01961,0.02745,1.00000"
+    ],
+    "orientation": {
+      "start": {
+        "x": 0.3,
+        "y": 0
+      },
+      "stop": {
+        "x": 0.7,
+        "y": 1
+      }
+    }
+  },
+  "groups": [
+    {
+      "name": "Play",
+      "layers": [
+        {
+          "name": "triangle",
+          "image-name": "triangle.svg",
+          "glass": true,
+          "fill": {
+            "solid": "srgb:1.00000,1.00000,1.00000,1.00000"
+          },
+          "opacity": 0.55
+        }
+      ],
+      "translucency": {
+        "enabled": true,
+        "value": 0.45
+      },
+      "shadow": {
+        "kind": "layer-color",
+        "opacity": 0.5
+      },
+      "specular": true,
+      "blur-material": 0.6,
+      "lighting": "individual"
+    },
+    {
+      "name": "Glow",
+      "layers": [
+        {
+          "name": "glow",
+          "image-name": "glow.png",
+          "glass": false
+        },
+        {
+          "name": "rim",
+          "image-name": "rim.png",
+          "glass": false,
+          "opacity": 1.0
+        }
+      ],
+      "shadow": {
+        "kind": "none",
+        "opacity": 0
+      },
+      "translucency": {
+        "enabled": false,
+        "value": 0
+      },
+      "specular": false
+    }
+  ],
+  "supported-platforms": {
+    "squares": [
+      "macOS"
+    ]
+  }
+}
