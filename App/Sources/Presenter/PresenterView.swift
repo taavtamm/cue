@@ -21,7 +21,7 @@ struct PresenterView: View {
     private func content(sideWidth: CGFloat) -> some View {
         VStack(spacing: 16) {
             PresenterHeader(model: model)
-            if model.showsFocusWarning {
+            if model.showsFocusWarning && !model.isRehearsal {
                 FocusHint.banner { model.showsFocusWarning = false }
             }
             HStack(alignment: .top, spacing: 24) {
@@ -30,7 +30,7 @@ struct PresenterView: View {
                     PresenterControls(model: model)
                     SlideStrip(model: model).frame(height: 92)
                     Spacer(minLength: 0)
-                    PresenterInfoRow(model: model)
+                    if !model.isRehearsal { PresenterInfoRow(model: model) }
                 }
                 VStack(alignment: .leading, spacing: 20) {
                     NextSlidePanel(model: model, renderer: next)

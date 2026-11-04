@@ -11,7 +11,7 @@ final class ShowSession {
     enum Mode {
         /// Full screen on the screens given roles in Displays.
         case present
-        /// On this Mac only: the stage and the presenter view in two windows.
+        /// On this Mac only: the presenter view alone, full screen.
         case rehearse
     }
 
@@ -62,22 +62,24 @@ final class ShowSession {
     func start() {
         displaySleep.begin(reason: "Presenting \(deck.fileURL.lastPathComponent)")
         broadcaster.keepsAnimationsInSync = displays.keepsAnimationsInSync
+        savedPresentationOptions = NSApp.presentationOptions
+        NSApp.presentationOptions = [.hideDock, .hideMenuBar]
         switch mode {
         case .present:
-            savedPresentationOptions = NSApp.presentationOptions
-            NSApp.presentationOptions = [.hideDock, .hideMenuBar]
             displays.isPresenting = true
             displays.onLayoutChange = { [weak self] in self?.applyDisplayRoles() }
             applyDisplayRoles()
-            if surfaces.isEmpty { openRehearsalWindows() } // Every screen was Off: never strand the presenter.
+            if surfaces.isEmpty { openRehearsalView() } // Every screen was Off: never strand the presenter.
         case .rehearse:
-            openRehearsalWindows()
+            openRehearsalView()
         }
         NSApp.activate()
         cursor.start()
         controller.startTimerIfNeeded()
         render()
-        Task { [model, focusState] in model.showsFocusWarning = FocusHint.shouldWarn(await focusState()) }
+        if !model.isRehearsal { // No audience while rehearsing, so no notification risk.
+            Task { [model, focusState] in model.showsFocusWarning = FocusHint.shouldWarn(await focusState()) }
+        }
         #if DEBUG
         Task { await ShowSnapshots.capture(session: self) { self.surfaces } }
         #endif
@@ -92,7 +94,7 @@ final class ShowSession {
         displays.isPresenting = false
         surfaces.values.forEach(close)
         surfaces = [:]
-        if mode == .present { NSApp.presentationOptions = savedPresentationOptions }
+        NSApp.presentationOptions = savedPresentationOptions
         onEnd?(controller.position.slide)
     }
 
@@ -113,16 +115,13 @@ final class ShowSession {
         render()
     }
 
-    private func openRehearsalWindows() {
-        let area = (NSScreen.main ?? NSScreen.screens[0]).visibleFrame
-        let stageWidth = area.width * 0.3
-        let stageFrame = CGRect(x: area.minX + 20, y: area.maxY - stageWidth * 9 / 16 - 40,
-                                width: stageWidth, height: stageWidth * 9 / 16 + 28)
-        let presenterFrame = CGRect(x: stageFrame.maxX + 16, y: area.minY + 20,
-                                    width: area.maxX - stageFrame.maxX - 36, height: area.height - 40)
-        open(.stage, in: .rehearsal(title: "Stage — rehearsal", frame: stageFrame), key: "rehearse-stage")
-        open(.presenter, in: .rehearsal(title: "Presenter view", frame: presenterFrame), key: "rehearse-presenter")
-        surfaces["rehearse-presenter"]?.window.makeKeyAndOrderFront(nil)
+    /// Rehearsal is the presenter view alone, full screen on this Mac, like
+    /// Keynote's: current slide, notes and what's next. No stage window.
+    private func openRehearsalView() {
+        model.isRehearsal = true
+        model.showsFocusWarning = false
+        let screen = NSScreen.main ?? NSScreen.screens[0]
+        open(.presenter, in: .covering(screen), key: "rehearse-presenter")
         updateScreenNames()
     }
 

@@ -26,22 +26,28 @@ struct PresenterHeader: View {
                     .foregroundStyle(Color.white.opacity(0.8))
                     .padding(.trailing, 10)
             }
-            Button(action: model.actions.openDisplays) {
-                Label(audienceText, systemImage: "rectangle.on.rectangle").lineLimit(1)
-            }
-            .buttonStyle(.cue())
-            Button(action: model.actions.toggleBlack) {
-                HStack(spacing: 4) {
-                    Text(model.controller.isBlack ? "Show slide" : "Black screen")
-                    KeyHint("B")
-                }
-            }
-            .buttonStyle(.cue())
+            if !model.isRehearsal { audienceControls }
             Button(model.controller.timer.isRunning ? "Pause timer" : "Resume timer", action: model.actions.toggleTimer)
                 .buttonStyle(.cue())
-            Button("End show", action: model.actions.end).buttonStyle(.cue(.destructive))
+            Button(model.isRehearsal ? "End rehearsal" : "End show", action: model.actions.end)
+                .buttonStyle(.cue(.destructive))
         }
         .frame(height: 56)
+    }
+
+    /// Where the audience is and blacking it out. Not shown while rehearsing.
+    @ViewBuilder private var audienceControls: some View {
+        Button(action: model.actions.openDisplays) {
+            Label(audienceText, systemImage: "rectangle.on.rectangle").lineLimit(1)
+        }
+        .buttonStyle(.cue())
+        Button(action: model.actions.toggleBlack) {
+            HStack(spacing: 4) {
+                Text(model.controller.isBlack ? "Show slide" : "Black screen")
+                KeyHint("B")
+            }
+        }
+        .buttonStyle(.cue())
     }
 
     private var audienceText: String {

@@ -12,7 +12,7 @@ struct CurrentSlidePanel: View {
             .aspectRatio(model.canvas.width / model.canvas.height, contentMode: .fit)
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay { if model.controller.isBlack || model.controller.isWhite { blankNotice } }
-            .overlay(alignment: .topLeading) { Pill("On stage", .status(dot: CueTheme.destructive)).padding(14) }
+            .overlay(alignment: .topLeading) { statusPill.padding(14) }
             .overlay(alignment: .topTrailing) {
                 if model.liveSlides.contains(model.position.slide) {
                     Pill("Live web content · playing", .status(dot: CueTheme.live)).padding(14)
@@ -21,6 +21,12 @@ struct CurrentSlidePanel: View {
             .shadow(color: .black.opacity(0.6), radius: 40, y: 30)
             .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.white.opacity(0.12)))
             .accessibilityLabel("Current slide: \(model.label(of: model.position.slide))")
+    }
+
+    private var statusPill: Pill {
+        model.isRehearsal
+            ? Pill("Rehearsing", .status(dot: CueTheme.selection))
+            : Pill("On stage", .status(dot: CueTheme.destructive))
     }
 
     /// The presenter still sees the slide; this says what the audience sees.

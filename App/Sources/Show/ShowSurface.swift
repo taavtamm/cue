@@ -23,6 +23,8 @@ final class ShowSurface {
     /// The stage renderer, if this surface shows the audience's slide.
     var stage: SlideRenderer? { renderers.first { $0.surface == .stage } }
 
+    /// In rehearsal there is no stage window, so the presenter's current slide
+    /// takes the stage's job (auto-builds, live-content reports).
     static func make(role: DisplayRole, window: ShowWindow, model: PresenterModel) -> ShowSurface? {
         switch role {
         case .stage, .mirror:
@@ -30,7 +32,7 @@ final class ShowSurface {
             window.contentView = renderer
             return ShowSurface(role: role, window: window, renderers: [renderer])
         case .presenter:
-            let current = SlideRenderer(surface: .presenterCurrent)
+            let current = SlideRenderer(surface: model.isRehearsal ? .stage : .presenterCurrent)
             let next = SlideRenderer(surface: .nextPreview)
             let view = PresenterView(model: model, current: current, next: next)
             window.contentView = NSHostingView(rootView: view)

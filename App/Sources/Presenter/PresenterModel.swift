@@ -20,6 +20,8 @@ final class PresenterModel {
     var liveSlides: Set<Int> = []
     /// Focus / Do Not Disturb is known to be off. Shown on presenter screens only.
     var showsFocusWarning = false
+    /// Rehearsing alone on this Mac: no audience, so audience controls are hidden.
+    var isRehearsal = false
     @ObservationIgnored var actions = PresenterActions()
 
     static let notesSizes: ClosedRange<CGFloat> = 14...44
