@@ -1,90 +1,122 @@
 import AppKit
 import CueCore
+import CueEditor
 import CueRender
 import SwiftUI
 
-/// A temporary deck window: the real slide, a summary bar, and Play.
-/// The Editor milestone replaces it with the full editor.
+/// One deck's editor window. Owns the editing session, the thumbnails, the
+/// show and the Displays window; the views are in App/Sources/Editor.
 @MainActor
 final class DeckWindowController: NSWindowController, NSWindowDelegate {
-    let deck: DeckDocument
+    let session: EditorSession
+    var deck: DeckDocument { session.document }
     var onClose: (() -> Void)?
 
-    private let model: DeckPreviewModel
-    private let preview = SlideRenderer(surface: .editor)
+    let thumbnails: ThumbnailStore
     private var show: ShowSession?
     private lazy var displays = DisplayCoordinator(sidecarURL: deck.sidecarURL)
     private var displaysWindow: DisplaysWindowController?
     private lazy var network = DeckNetworkAccess(document: deck)
 
     init(deck: DeckDocument) {
-        self.deck = deck
-        model = DeckPreviewModel(document: deck)
+        session = EditorSession(document: deck)
+        thumbnails = ThumbnailStore(canvas: deck.structure.canvas)
         let window = NSWindow(
-            contentRect: CGRect(x: 0, y: 0, width: 1100, height: 700),
+            contentRect: CGRect(x: 0, y: 0, width: 1484, height: 954),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered, defer: false
         )
-        window.title = model.title
         window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
         window.backgroundColor = .black
-        window.minSize = CGSize(width: 640, height: 420)
-        window.setFrameAutosaveName("DeckWindow")
+        window.minSize = CGSize(width: 1100, height: 720)
+        window.setFrameAutosaveName("EditorWindow")
         super.init(window: window)
+        window.title = session.title
+        window.representedURL = deck.fileURL
         window.delegate = self
-        window.contentView = makeContent()
+        window.contentView = NSHostingView(rootView: makeEditor())
         if window.frame.origin == .zero { window.center() }
-        loadPreview()
+        wireUp()
+        Task { await load() }
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("DeckWindowController is created in code") }
 
-    private func makeContent() -> NSView {
-        let bar = NSHostingView(rootView: DeckBar(
-            model: model,
-            onPrevious: { [weak self] in self?.step(by: -1) },
-            onNext: { [weak self] in self?.step(by: 1) },
-            onPlay: { [weak self] in self?.present(fromSlide: self?.model.slide ?? 0) },
-            onRehearse: { [weak self] in self?.present(fromSlide: self?.model.slide ?? 0, mode: .rehearse) },
-            onDisplays: { [weak self] in self?.showDisplays(nil) }
-        ))
-        let banner = NSHostingView(rootView: NetworkAccessBanner(access: network))
-        banner.setContentHuggingPriority(.required, for: .vertical)
-        let stack = NSStackView(views: [banner, preview, bar])
-        stack.orientation = .vertical
-        stack.spacing = 0
-        stack.edgeInsets = NSEdgeInsets(top: 28, left: 0, bottom: 0, right: 0)
-        bar.setContentHuggingPriority(.required, for: .vertical)
-        return stack
+    private func makeEditor() -> some View {
+        EditorView(
+            session: session, thumbnails: thumbnails, actions: makeActions(),
+            networkBanner: AnyView(NetworkAccessBanner(access: network))
+        )
     }
 
-    private func loadPreview() {
-        preview.onEvent = { [weak self] event in
-            if case .liveContent(let slides) = event { self?.model.noteLive(slides) }
+    private func wireUp() {
+        session.canvas.onSandboxEvent = { [weak self] event in self?.network.handle(event) }
+        network.onAllowed = { [weak self] in Task { await self?.load() } } // Reload with the newly allowed hosts.
+        session.onDocumentChanged = { [weak self] result in
+            guard let self else { return }
+            self.window?.isDocumentEdited = self.session.isDirty
+            Task { await self.thumbnails.update(after: result, in: self.session.document, slide: self.session.slide) }
         }
-        preview.onSandboxEvent = { [weak self] event in self?.network.handle(event) }
-        network.onAllowed = { [weak self] in self?.loadPreview() } // Reload with the newly allowed hosts.
+    }
+
+    private func load() async {
+        do {
+            try await session.loadCanvas()
+        } catch {
+            DeckOpener.reportFailure(opening: deck.fileURL, error: error)
+            return
+        }
+        await thumbnails.load(session.document)
+        #if DEBUG
+        EditorSnapshots.captureIfRequested(window: window, session: session)
+        #endif
+    }
+
+    private func makeActions() -> EditorActions {
+        EditorActions(
+            play: { [weak self] slide in self?.present(fromSlide: slide) },
+            rehearse: { [weak self] in self?.rehearse(nil) },
+            showDisplays: { [weak self] in self?.showDisplays(nil) },
+            addSlide: { [weak self] in self?.edit(.addSlide(after: self?.session.slide ?? 0, html: nil), thenShow: 1) },
+            duplicateSlide: { [weak self] index in self?.duplicate(index) },
+            deleteSlide: { [weak self] index in self?.edit(.deleteSlide(index), thenShow: 0) },
+            moveSlide: { [weak self] from, to in self?.move(from, to) }
+        )
+    }
+
+    // MARK: Slide structure
+
+    /// Applies a structural edit, then shows the slide `offset` after the current one.
+    private func edit(_ operation: EditOperation, thenShow offset: Int) {
         Task {
-            do {
-                try await preview.load(DeckSource(document: deck), at: ShowPosition(slide: model.slide))
-                preview.show(ShowPosition(slide: model.slide), finished: true)
-            } catch {
-                DeckOpener.reportFailure(opening: deck.fileURL, error: error)
-            }
+            let target = session.slide + offset
+            if await session.apply(operation) { session.showSlide(target) }
         }
     }
 
-    private func step(by delta: Int) {
-        model.select(model.slide + delta)
-        preview.show(ShowPosition(slide: model.slide), finished: true)
+    private func duplicate(_ index: Int) {
+        guard session.structure.slides.indices.contains(index),
+              let range = session.structure.slides[index].sourceRange else { return }
+        let source = session.document.source as NSString
+        let html = source.substring(with: NSRange(location: range.start, length: range.length))
+        Task {
+            if await session.apply(.addSlide(after: index, html: html)) { session.showSlide(index + 1) }
+        }
+    }
+
+    private func move(_ from: Int, _ to: Int) {
+        Task {
+            if await session.apply(.moveSlide(from: from, to: to)) { session.showSlide(to) }
+        }
     }
 
     // MARK: Showing
 
-    @objc func playSlideshow(_ sender: Any?) { present(fromSlide: model.slide) }
+    @objc func playSlideshow(_ sender: Any?) { present(fromSlide: session.slide) }
     @objc func playFromStart(_ sender: Any?) { present(fromSlide: 0) }
-    @objc func rehearse(_ sender: Any?) { present(fromSlide: model.slide, mode: .rehearse) }
+    @objc func rehearse(_ sender: Any?) { present(fromSlide: session.slide, mode: .rehearse) }
 
     @objc func showDisplays(_ sender: Any?) {
         let controller = displaysWindow ?? DisplaysWindowController(
@@ -95,32 +127,34 @@ final class DeckWindowController: NSWindowController, NSWindowDelegate {
         displaysWindow = controller
         controller.showWindow(nil)
         Task { await displays.refreshFocus() }
-        #if DEBUG
-        if let window = controller.window, let chrome = controller.chrome {
-            Task { await ShowSnapshots.capture(window: window, chrome: chrome, named: "displays.png") }
-        }
-        #endif
     }
 
+    /// Shows the deck as it is now, unsaved edits included.
     func present(fromSlide slide: Int, mode: ShowSession.Mode = .present) {
         guard show == nil else { return }
-        let show = ShowSession(deck: deck, startSlide: slide, mode: mode, displays: displays)
+        session.endInteractions()
+        let show = ShowSession(deck: session.document, startSlide: slide, mode: mode, displays: displays)
         show.onOpenDisplays = { [weak self] in self?.showDisplays(nil) }
         show.onEnd = { [weak self] lastSlide in
             guard let self else { return }
             self.show = nil
-            self.model.select(lastSlide)
-            self.preview.show(ShowPosition(slide: lastSlide), finished: true)
-            self.preview.setPaused(false)
+            self.session.showSlide(lastSlide)
+            self.session.setPlayingLive(self.session.isPlayingLive)
             self.window?.makeKeyAndOrderFront(nil)
         }
         self.show = show
-        preview.setPaused(true) // Only the stage animates while presenting.
+        session.canvas.setPaused(true) // Only the show animates while presenting.
         show.start()
+    }
+
+    /// Esc while the page has focus (trying out an embed): stop and deselect.
+    override func cancelOperation(_ sender: Any?) {
+        session.clearSelection()
     }
 
     func windowWillClose(_ notification: Notification) {
         show?.end()
+        thumbnails.close()
         onClose?()
     }
 }

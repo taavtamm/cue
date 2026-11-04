@@ -7,7 +7,7 @@ enum DeckOpener {
     static func chooseDecks(_ completion: @escaping ([URL]) -> Void) {
         let panel = NSOpenPanel()
         panel.title = "Open a presentation"
-        panel.allowedContentTypes = [.html]
+        panel.allowedContentTypes = PresentationTypes.all
         panel.allowsMultipleSelection = true
         panel.begin { response in
             completion(response == .OK ? panel.urls : [])

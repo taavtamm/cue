@@ -1,5 +1,6 @@
 import AppKit
 import CueCore
+import CueImport
 
 /// Cue's entry point. A plain AppKit app: SwiftUI views are hosted inside
 /// windows we manage ourselves, because the show needs per-screen windows
@@ -9,6 +10,7 @@ import CueCore
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private static let shared = AppDelegate()
     private var deckWindows: [DeckWindowController] = []
+    private let imports = ImportCoordinator()
 
     static func main() {
         let app = NSApplication.shared
@@ -43,6 +45,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Opens a deck in its own window, optionally going straight into the show.
     func open(_ url: URL, presentAt slide: Int? = nil) {
+        // PowerPoint, Keynote, OpenDocument and PDF become an HTML deck first.
+        if ImportService.needsImport(url) {
+            imports.open(url) { [weak self] html, report in
+                self?.open(html, presentAt: slide)
+                let window = self?.deckWindows.first { $0.deck.fileURL == html }?.window
+                if let report { self?.imports.showReport(report, over: window) }
+            }
+            return
+        }
         if let existing = deckWindows.first(where: { $0.deck.fileURL == url }) {
             existing.showWindow(nil)
             return

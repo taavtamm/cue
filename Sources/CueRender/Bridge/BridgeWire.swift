@@ -41,6 +41,9 @@ extension BridgeEvent {
             self = .position(ShowPosition(slide: slide, build: build))
         case "liveContent":
             self = .liveContent(slides: message["slides"] as? [Int] ?? [])
+        case "textEditing":
+            guard let event = InlineTextEvent(wire: message) else { return nil }
+            self = .textEditing(event)
         case "error":
             self = .error(message: message["message"] as? String ?? "Unknown bridge error")
         default:

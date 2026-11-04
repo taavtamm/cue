@@ -64,5 +64,7 @@ public enum BridgeEvent: Sendable, Equatable, Codable {
     case position(ShowPosition)
     /// Live content found per slide index (embeds, video, canvas, rAF).
     case liveContent(slides: [Int])
+    /// Inline text editing on an editor surface (see 89-inline-text.js).
+    case textEditing(InlineTextEvent)
     case error(message: String)
 }

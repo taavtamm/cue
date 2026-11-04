@@ -9,17 +9,25 @@ public struct GlowTextField: NSViewRepresentable {
     @Binding var text: String
     let style: GlowTextStyle
     let onSubmit: (() -> Void)?
+    /// Called when the field loses focus, e.g. to commit an inspector value.
+    var onEndEditing: (() -> Void)?
+    /// False shows the text with the glowing caret but refuses typing.
+    var isEditable = true
 
     public init(
         _ placeholder: String = "",
         text: Binding<String>,
         style: GlowTextStyle = .field,
-        onSubmit: (() -> Void)? = nil
+        isEditable: Bool = true,
+        onSubmit: (() -> Void)? = nil,
+        onEndEditing: (() -> Void)? = nil
     ) {
         self.placeholder = placeholder
         self._text = text
         self.style = style
+        self.isEditable = isEditable
         self.onSubmit = onSubmit
+        self.onEndEditing = onEndEditing
     }
 
     public func makeNSView(context: Context) -> GlowTextEditorView {
@@ -28,6 +36,7 @@ public struct GlowTextField: NSViewRepresentable {
         editor.textView.placeholder = placeholder
         editor.textView.delegate = context.coordinator
         editor.textView.setAccessibilityLabel(placeholder)
+        editor.textView.isEditable = isEditable
         return editor
     }
 
@@ -35,6 +44,7 @@ public struct GlowTextField: NSViewRepresentable {
         context.coordinator.parent = self
         if editor.textView.string != text { editor.textView.string = text }
         editor.textView.placeholder = placeholder
+        editor.textView.isEditable = isEditable
     }
 
     public func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
@@ -46,6 +56,10 @@ public struct GlowTextField: NSViewRepresentable {
         public func textDidChange(_ notification: Notification) {
             guard let view = notification.object as? NSTextView else { return }
             parent.text = view.string
+        }
+
+        public func textDidEndEditing(_ notification: Notification) {
+            parent.onEndEditing?()
         }
 
         public func textView(_ textView: NSTextView, doCommandBy selector: Selector) -> Bool {

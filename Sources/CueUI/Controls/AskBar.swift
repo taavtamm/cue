@@ -9,6 +9,7 @@ public struct AskBar: View {
     let onSubmit: () -> Void
     var onSuggestion: (String) -> Void = { _ in }
     var onDictate: () -> Void = {}
+    @Environment(\.cueRendersStatically) private var rendersStatically
 
     public init(
         text: Binding<String>,
@@ -29,7 +30,7 @@ public struct AskBar: View {
     public var body: some View {
         HStack(spacing: 10) {
             AskOrb()
-            GlowTextField(placeholder, text: $text, style: .ask, onSubmit: onSubmit)
+            field
                 .frame(height: 40)
                 .frame(maxWidth: .infinity)
             ForEach(suggestions, id: \.self) { suggestion in
@@ -42,6 +43,17 @@ public struct AskBar: View {
         .frame(height: 58)
         .background(Color(red: 14 / 255, green: 14 / 255, blue: 18 / 255, opacity: 0.95), in: Capsule())
         .siriGlow(Capsule().inset(by: -1), ringWidth: 1.5, haloBlur: 16, haloOpacity: 0.55)
+    }
+
+    @ViewBuilder private var field: some View {
+        if rendersStatically {
+            Text(text.isEmpty ? placeholder : text)
+                .font(.system(size: 16))
+                .foregroundStyle(text.isEmpty ? Color.white.opacity(0.62) : CueTheme.text)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            GlowTextField(placeholder, text: $text, style: .ask, onSubmit: onSubmit)
+        }
     }
 }
 

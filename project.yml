@@ -26,16 +26,23 @@ targets:
         product: CueRender
       - package: CuePackage
         product: CueUI
+      - package: CuePackage
+        product: CueEditor
+      - package: CuePackage
+        product: CueImport
     entitlements:
       path: App/Cue.entitlements
       properties:
         # parse5 runs in JavaScriptCore; without JIT it is ~20x slower.
         # Deck JavaScript never runs here, only inside WKWebView.
         com.apple.security.cs.allow-jit: true
+        # Opening .key, .ppt and .odp asks Keynote for a PowerPoint copy.
+        com.apple.security.automation.apple-events: true
     info:
       path: App/Info.plist
       properties:
         CFBundleDisplayName: Cue
+        NSAppleEventsUsageDescription: Cue asks Keynote to convert Keynote, PowerPoint 97 and OpenDocument files so you can present and edit them.
         NSFocusStatusUsageDescription: Cue warns you before a show when Focus is off, so notifications don't appear on the projector.
         CFBundleShortVersionString: "0.1"
         LSApplicationCategoryType: public.app-category.productivity
@@ -45,6 +52,16 @@ targets:
             CFBundleTypeRole: Editor
             LSHandlerRank: Alternate
             LSItemContentTypes: [public.html]
+          - CFBundleTypeName: Presentation
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes:
+              - org.openxmlformats.presentationml.presentation
+              - com.microsoft.powerpoint.ppt
+              - com.apple.iwork.keynote.key
+              - com.apple.keynote.key
+              - org.oasis-open.opendocument.presentation
+              - com.adobe.pdf
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.cue.Cue
