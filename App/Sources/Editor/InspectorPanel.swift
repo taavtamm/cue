@@ -20,6 +20,7 @@ struct InspectorPanel: View {
         }
         .frame(maxHeight: .infinity, alignment: .top)
         .background(Color.white.opacity(0.045), in: RoundedRectangle(cornerRadius: CueTheme.panelRadius))
+        .clipShape(RoundedRectangle(cornerRadius: CueTheme.panelRadius))
         .overlay(RoundedRectangle(cornerRadius: CueTheme.panelRadius).strokeBorder(Color.white.opacity(0.07)))
     }
 }

@@ -26,6 +26,7 @@ struct SlideSidebar: View {
         }
         .frame(width: 224)
         .background(Color.white.opacity(0.045), in: RoundedRectangle(cornerRadius: CueTheme.panelRadius))
+        .clipShape(RoundedRectangle(cornerRadius: CueTheme.panelRadius)) // Scrolled cells stay inside the panel.
         .overlay(RoundedRectangle(cornerRadius: CueTheme.panelRadius).strokeBorder(Color.white.opacity(0.07)))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Slides")
@@ -59,7 +60,7 @@ struct SlideSidebar: View {
         return SlideThumbnailCell(
             number: index + 1, image: thumbnails.images[index],
             label: slide.label.isEmpty ? "Slide \(index + 1)" : slide.label,
-            isLive: session.liveSlides.contains(index), isSelected: index == session.slide,
+            isSelected: index == session.slide,
             aspectRatio: session.structure.canvas.width / max(1, session.structure.canvas.height)
         )
     }

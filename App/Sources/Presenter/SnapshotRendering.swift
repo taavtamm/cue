@@ -21,7 +21,9 @@ struct SnapshotFriendlyScrollView<Content: View>: View {
                 }
                 .clipped()
         } else {
-            ScrollView(axis, showsIndicators: false, content: content)
+            // Clipped: in glass windows the title bar is transparent, and
+            // scroll views would otherwise draw their content up under it.
+            ScrollView(axis, showsIndicators: false, content: content).clipped()
         }
     }
 }

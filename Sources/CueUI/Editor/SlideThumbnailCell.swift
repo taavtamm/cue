@@ -2,21 +2,19 @@ import AppKit
 import SwiftUI
 
 /// One slide in the editor's sidebar: number, a real render of the slide,
-/// a LIVE tag for slides with running web content, and the slide's title.
+/// and the slide's title.
 public struct SlideThumbnailCell: View {
     let number: Int
     let image: NSImage?
     let label: String
-    let isLive: Bool
     let isSelected: Bool
     let aspectRatio: CGFloat
 
-    public init(number: Int, image: NSImage?, label: String, isLive: Bool, isSelected: Bool,
+    public init(number: Int, image: NSImage?, label: String, isSelected: Bool,
                 aspectRatio: CGFloat = 16 / 9) {
         self.number = number
         self.image = image
         self.label = label
-        self.isLive = isLive
         self.isSelected = isSelected
         self.aspectRatio = aspectRatio
     }
@@ -30,21 +28,18 @@ public struct SlideThumbnailCell: View {
                 .padding(.top, 3)
             VStack(alignment: .leading, spacing: 5) {
                 picture
-                HStack(spacing: 4) {
-                    if isLive { LiveTag() }
-                    Text(label)
-                        .font(.system(size: 10.5))
-                        .foregroundStyle(CueTheme.textTertiary)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
+                Text(label)
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(CueTheme.textTertiary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
         }
         .padding(EdgeInsets(top: 7, leading: 4, bottom: 8, trailing: 8))
         .background(isSelected ? Color.white.opacity(0.10) : .clear, in: RoundedRectangle(cornerRadius: 12))
         .contentShape(RoundedRectangle(cornerRadius: 12))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Slide \(number): \(label)\(isLive ? ", live content" : "")")
+        .accessibilityLabel("Slide \(number): \(label)")
         .accessibilityAddTraits(isSelected ? [.isSelected, .isButton] : .isButton)
     }
 
@@ -71,8 +66,8 @@ public struct SlideThumbnailCell: View {
 
 #Preview {
     VStack(spacing: 4) {
-        SlideThumbnailCell(number: 1, image: nil, label: "Plans that hold up.", isLive: false, isSelected: false)
-        SlideThumbnailCell(number: 2, image: nil, label: "One question, answered.", isLive: true, isSelected: true)
+        SlideThumbnailCell(number: 1, image: nil, label: "Plans that hold up.", isSelected: false)
+        SlideThumbnailCell(number: 2, image: nil, label: "One question, answered.", isSelected: true)
     }
     .frame(width: 210)
     .padding()

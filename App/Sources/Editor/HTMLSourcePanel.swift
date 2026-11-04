@@ -27,6 +27,7 @@ struct HTMLSourcePanel: View {
                 }
             }
                 .background(CueTheme.insetFill, in: RoundedRectangle(cornerRadius: 14))
+                .clipShape(RoundedRectangle(cornerRadius: 14))
                 .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.white.opacity(0.07)))
         }
         .padding(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
@@ -41,6 +42,7 @@ private struct SourceCodeView: NSViewRepresentable {
     func makeNSView(context: Context) -> NSScrollView {
         let scroll = NSScrollView()
         scroll.drawsBackground = false
+        scroll.automaticallyAdjustsContentInsets = false // Don't make room for the transparent title bar.
         scroll.hasVerticalScroller = true
         let editor = GlowTextEditorView(style: .code)
         editor.textView.isEditable = false

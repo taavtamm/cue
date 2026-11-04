@@ -114,6 +114,19 @@ struct SessionTests {
         #expect(harness.session.timeline.rows.allSatisfy { !$0.title.localizedCaseInsensitiveContains("embed") })
     }
 
+    /// Slide 1 runs a live embed as a full-slide background with text on
+    /// top. Double-clicking that text must edit it, not wake the embed.
+    @Test func doubleClickOnTextAboveABackgroundEmbedEditsTheText() async throws {
+        let (harness, document) = try await open(slide: 0)
+        defer { harness.close() }
+        _ = try await harness.waitForEmbed()
+        let heading = try #require(document.heading(onSlide: 0))
+        await harness.session.doubleClick(at: try await harness.centre(of: heading.cueID))
+        #expect(harness.session.interactiveEmbed == nil)
+        #expect(harness.session.inlineEdit != nil)
+        harness.session.clearSelection()
+    }
+
     @Test func doubleClickOnALiveEmbedLetsItTakeClicks() async throws {
         let (harness, _) = try await open(slide: 5)
         defer { harness.close() }

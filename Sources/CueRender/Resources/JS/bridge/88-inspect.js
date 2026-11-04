@@ -95,13 +95,41 @@ cue.inspect = (() => {
     }
   }
 
-  /** The box of the live embed under a point, if any. Embeds ignore pointer events, so test their boxes. */
-  function embedAt(x, y) {
-    for (const frame of document.querySelectorAll('iframe[srcdoc]')) {
-      const r = frame.getBoundingClientRect();
-      if (r.width > 0 && x >= r.x && x <= r.right && y >= r.y && y <= r.bottom) return plainRect(r);
+  /** True when an element paints something of its own at a point: text,
+   *  media, or a background. Empty layout boxes let what's below show. */
+  function paintsOwnContent(el) {
+    if (el.matches('img, svg, video, canvas, picture, input, textarea, button')) return true;
+    for (const node of el.childNodes) {
+      if (node.nodeType === Node.TEXT_NODE && node.textContent.trim() !== '') return true;
     }
-    return null;
+    const style = getComputedStyle(el);
+    const fill = style.backgroundColor;
+    return style.backgroundImage !== 'none' || (fill !== 'transparent' && !/rgba\(.*,\s*0\)$/.test(fill));
+  }
+
+  /** The box of the live embed under a point, if it is what the user sees
+   *  there. Some decks run an embed as a full-slide background with text on
+   *  top: a double-click on that text must edit the text, not the embed.
+   *  So walk the stack top-down and stop at the first thing that paints. */
+  function embedAt(x, y) {
+    const frames = Array.from(document.querySelectorAll('iframe[srcdoc]'));
+    if (frames.length === 0) return null;
+    // Embeds are inert and ignore pointer events, which also hides them from
+    // hit testing. Lift both for this one synchronous query (nothing paints).
+    const saved = frames.map((frame) => ({ pointer: frame.style.pointerEvents, inert: frame.hasAttribute('inert') }));
+    frames.forEach((frame) => { frame.style.pointerEvents = 'auto'; frame.removeAttribute('inert'); });
+    try {
+      for (const el of document.elementsFromPoint(x, y)) {
+        if (el.matches('iframe[srcdoc]')) return plainRect(el.getBoundingClientRect());
+        if (paintsOwnContent(el)) return null;
+      }
+      return null;
+    } finally {
+      frames.forEach((frame, i) => {
+        frame.style.pointerEvents = saved[i].pointer;
+        frame.toggleAttribute('inert', saved[i].inert);
+      });
+    }
   }
 
   /** Lets embeds take clicks (the user double-clicked one to try it) or makes them inert again. */
