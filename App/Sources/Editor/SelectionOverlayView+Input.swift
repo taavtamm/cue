@@ -116,6 +116,12 @@ extension SelectionOverlayView {
 
     // MARK: Trackpad
 
+    /// Two-finger scrolling pans the zoomed slide. Sent straight to the zoom's
+    /// scroll view: passed up the responder chain, it was lost on the way.
+    override func scrollWheel(with event: NSEvent) {
+        if let scrollView = container?.scrollView { scrollView.scrollWheel(with: event) } else { super.scrollWheel(with: event) }
+    }
+
     override func magnify(with event: NSEvent) {
         container?.magnify(by: event.magnification, at: convert(event.locationInWindow, from: nil))
     }

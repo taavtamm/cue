@@ -58,8 +58,22 @@ cue.sourceMap = (() => {
     return display === 'inline' || display === 'contents';
   };
 
+  /** The slide's background: the slide itself, the page around it, or a
+   *  box covering (almost) the whole slide. Pictures are never background,
+   *  so a full-bleed photo can still be picked. */
+  function isBackground(el) {
+    if (el.matches('img, video, svg, canvas, picture, iframe')) return false;
+    const selector = cue.config && cue.config.slideSelector;
+    const slide = selector ? el.closest(selector) : null;
+    if (!slide || el === slide) return true;
+    const canvas = (slide.querySelector('.deck-scaler > *') || slide).getBoundingClientRect();
+    const box = el.getBoundingClientRect();
+    return box.width >= canvas.width * 0.95 && box.height >= canvas.height * 0.95;
+  }
+
   /** The mapped element under a point in CSS pixels of the viewport: the
-   *  nearest box that isn't inline, so clicking text selects its text box. */
+   *  nearest box that isn't inline, so clicking text selects its text box.
+   *  Nothing (null) on the slide's background, so a click there deselects. */
   function at(x, y) {
     let target = mappedAncestor(document.elementFromPoint(x, y));
     while (target && isInline(target)) {
@@ -67,7 +81,7 @@ cue.sourceMap = (() => {
       if (!box || box === document.body || box === document.documentElement) break;
       target = box;
     }
-    if (!target) return null;
+    if (!target || isBackground(target)) return null;
     const rect = target.getBoundingClientRect();
     return { cueID: target.getAttribute('data-cue-id'), tag: target.localName,
       rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height } };

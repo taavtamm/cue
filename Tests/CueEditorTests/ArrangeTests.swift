@@ -200,3 +200,30 @@ struct InlineTextSelectionTests {
         #expect(!harness.session.isDirty)
     }
 }
+
+/// Clicking the slide's background, or the grey around it, deselects.
+@Suite("Clicking the background", .serialized)
+@MainActor
+struct BackgroundClickTests {
+    @Test func clickingEmptySlideAreaOrOutsideDeselects() async throws {
+        let document = try await EditorFixture.document(try EditorFixture.copy("demo-deck.html"))
+        let harness = SessionHarness(document)
+        defer { harness.close() }
+        try await harness.load(slide: 1)
+        let heading = try #require(document.heading(onSlide: 1))
+        _ = await harness.session.click(at: try await harness.centre(of: heading.cueID))
+        #expect(harness.session.selection != nil)
+
+        // Slide 2's lower right is empty: just the slide's own background.
+        let geometry = try #require(await harness.session.canvasGeometry())
+        let empty = geometry.viewRect(fromCanvas: CGRect(x: 1840, y: 1000, width: 1, height: 1)).origin
+        #expect(await harness.session.click(at: empty) == nil)
+        #expect(harness.session.selection == nil, "the slide's background deselects")
+
+        _ = await harness.session.click(at: try await harness.centre(of: heading.cueID))
+        #expect(harness.session.selection != nil)
+        let outside = geometry.viewRect(fromCanvas: CGRect(x: -40, y: 540, width: 1, height: 1)).origin
+        _ = await harness.session.click(at: outside)
+        #expect(harness.session.selection == nil, "the area around the slide deselects")
+    }
+}

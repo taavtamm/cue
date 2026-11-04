@@ -16,6 +16,7 @@ function choosePlayer(config) {
 let player = null;
 
 cue.handlers.configure = ({ config }) => {
+  cue.config = config; // Other parts read the slide selector and surface.
   player = choosePlayer(config);
   cue.post('ready', { slideCount: player.slideCount, player: player.name });
   const known = player.liveSlides ? player.liveSlides() : [];
