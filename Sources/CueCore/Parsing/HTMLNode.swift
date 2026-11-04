@@ -11,6 +11,8 @@ public final class HTMLNode: Sendable {
     public let range: SourceRange?
     /// The start tag only, `<tag ...>`.
     public let startTagRange: SourceRange?
+    /// The end tag, `</tag>`. Nil for void elements and implied end tags.
+    public let endTagRange: SourceRange?
     /// Text content directly inside this element (not descendants), trimmed.
     public let text: String
     public let children: [HTMLNode]
@@ -21,6 +23,7 @@ public final class HTMLNode: Sendable {
         attributeRanges: [String: SourceRange] = [:],
         range: SourceRange? = nil,
         startTagRange: SourceRange? = nil,
+        endTagRange: SourceRange? = nil,
         text: String = "",
         children: [HTMLNode] = []
     ) {
@@ -29,6 +32,7 @@ public final class HTMLNode: Sendable {
         self.attributeRanges = attributeRanges
         self.range = range
         self.startTagRange = startTagRange
+        self.endTagRange = endTagRange
         self.text = text
         self.children = children
     }

@@ -1,13 +1,14 @@
 import Foundation
 
 /// The compact JSON shape produced by `Web/src/parse.js`.
-/// Keys: t tag, a attrs, ar attr ranges, r range, s start tag, x text, c children.
+/// Keys: t tag, a attrs, ar attr ranges, r range, s start tag, e end tag, x text, c children.
 struct RawNode: Decodable {
     let t: String
     let a: [String: String]
     let ar: [String: [Int]]
     let r: [Int]?
     let s: [Int]?
+    let e: [Int]?
     let x: String
     let c: [RawNode]
 
@@ -18,6 +19,7 @@ struct RawNode: Decodable {
             attributeRanges: ar.compactMapValues(Self.range),
             range: r.flatMap(Self.range),
             startTagRange: s.flatMap(Self.range),
+            endTagRange: e.flatMap(Self.range),
             text: x,
             children: c.map(\.node)
         )

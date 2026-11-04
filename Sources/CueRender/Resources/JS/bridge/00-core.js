@@ -37,6 +37,7 @@ cue.setStyle = (id, css) => {
   if (!style) {
     style = document.createElement('style');
     style.id = id;
+    style.setAttribute('data-cue-owned', ''); // Not deck content: the source mapper skips it.
     document.documentElement.appendChild(style);
   }
   style.textContent = css;

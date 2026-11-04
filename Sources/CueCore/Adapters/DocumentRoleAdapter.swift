@@ -13,7 +13,10 @@ public struct DocumentRoleAdapter: DeckAdapter {
             return nil
         }
         let infos = slides.enumerated().map { index, slide in
-            slide.info(index: index, notesAttributes: ["data-speaker-notes", "data-notes"])
+            slide.info(
+                index: index, notesAttributes: ["data-speaker-notes", "data-notes"],
+                builds: CueConventionAdapter.builds(in: slide.node)
+            )
         }
         return DeckStructure(
             adapter: kind,

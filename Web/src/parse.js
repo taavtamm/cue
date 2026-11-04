@@ -32,7 +32,8 @@ function range(loc) {
 }
 
 // Short keys keep the JSON small for large decks:
-// t tag, a attrs, ar attr ranges, r element range, s start tag range, x text, c children.
+// t tag, a attrs, ar attr ranges, r element range, s start tag range, e end tag range,
+// x text, c children.
 function convert(node) {
   const loc = node.sourceCodeLocation;
   const attrs = {};
@@ -53,6 +54,7 @@ function convert(node) {
     ar: attrRanges,
     r: range(loc),
     s: loc ? range(loc.startTag) : null,
+    e: loc ? range(loc.endTag) : null,
     x: DEEP_TEXT_TAGS.has(node.tagName) ? deepText(node) : directText(node),
     c: children,
   };

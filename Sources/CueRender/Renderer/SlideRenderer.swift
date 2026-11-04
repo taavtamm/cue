@@ -20,14 +20,18 @@ public final class SlideRenderer: NSView {
     var watchdogInterval: Duration = .seconds(3)
     public private(set) var isReady = false
     public private(set) var slideCount = 0
+    /// When set, every load tags the live DOM with these source ids (editor
+    /// surfaces). See `SlideRenderer+Editing.swift`.
+    public var sourceManifest: [LiveElement]?
+    public internal(set) var lastMapping: LiveMappingReport?
 
     private var webView: WKWebView?
     private let messages = BridgeMessageHandler()
     private let policy = SandboxPolicy()
     private let watchdog = ScriptWatchdog()
     private let cover = NSView()
-    private var source: DeckSource?
-    private var position = ShowPosition.start
+    private(set) var source: DeckSource?
+    private(set) var position = ShowPosition.start
     private var finished = false
     private var paused = false
 
@@ -140,6 +144,14 @@ public final class SlideRenderer: NSView {
         return try await webView.callAsyncJavaScript(functionBody, contentWorld: BridgeScript.world)
     }
 
+    /// Runs a function body with arguments in the bridge world.
+    func callInBridge(_ functionBody: String, arguments: [String: Any] = [:]) async throws -> Any? {
+        guard let webView else { throw SlideRendererError.notReady }
+        return try await webView.callAsyncJavaScript(
+            functionBody, arguments: arguments, contentWorld: BridgeScript.world
+        )
+    }
+
     /// Runs a function body in the deck's own world, as a deck script would. Tests only.
     func evaluateInPage(_ functionBody: String) async throws -> Any? {
         guard let webView else { return nil }
@@ -161,6 +173,13 @@ public final class SlideRenderer: NSView {
             send(.show(position, finished: finished))
             if paused { setPaused(true) }
             webView?.alphaValue = 1
+            if let sourceManifest {
+                Task {
+                    lastMapping = try? await mapSourceElements(sourceManifest)
+                    onEvent?(event)
+                }
+                return
+            }
         }
         onEvent?(event)
     }

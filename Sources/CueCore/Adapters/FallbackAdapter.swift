@@ -76,6 +76,12 @@ public struct FallbackAdapter: DeckAdapter {
     }
 
     private func infos(_ slides: [SlideMatch]) -> [SlideInfo] {
-        slides.enumerated().map { $1.info(index: $0, notesAttributes: ["data-notes", "data-speaker-notes"]) }
+        // Cue's `data-cue-build` works in any deck Cue drives, so builds set in Cue show up.
+        slides.enumerated().map { index, slide in
+            slide.info(
+                index: index, notesAttributes: ["data-notes", "data-speaker-notes"],
+                builds: CueConventionAdapter.builds(in: slide.node)
+            )
+        }
     }
 }

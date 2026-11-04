@@ -20,6 +20,7 @@ cue.createEmbeds = (motion, frameFor) => {
     embed.host.setAttribute('data-embed-dead', '');
     const label = document.createElement('div');
     label.setAttribute('data-embed-dead-label', '');
+    label.setAttribute('data-cue-owned', '');
     label.setAttribute('style', EMBED_DEAD_STYLE);
     label.textContent = reason;
     embed.host.appendChild(label);
@@ -52,6 +53,7 @@ cue.createEmbeds = (motion, frameFor) => {
 
       const iframe = document.createElement('iframe');
       iframe.setAttribute('sandbox', 'allow-scripts');
+      iframe.setAttribute('data-cue-owned', ''); // Created by Cue, not in the source.
       iframe.setAttribute('inert', '');
       iframe.setAttribute('tabindex', '-1');
       iframe.setAttribute('referrerpolicy', 'no-referrer');
