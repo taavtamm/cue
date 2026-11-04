@@ -30,11 +30,39 @@ extension EditorSession {
         case .commit(let cueID, let text):
             let path = inlineEdit?.path ?? document.element(cueID: cueID)?.path
             inlineEdit = nil
-            guard let path, let element = document.sourceMap.element(at: path) else { return }
-            Task { await commitText(text, to: element) }
+            guard let path, let element = document.sourceMap.element(at: path) else { return resumeCommitWaiters() }
+            Task {
+                await commitText(text, to: element)
+                resumeCommitWaiters()
+            }
         case .cancel:
             inlineEdit = nil
+            resumeCommitWaiters()
         }
+    }
+
+    /// Ends embed interaction and inline editing, and returns once the typed
+    /// text is in the document. Use before reading the document (e.g. to
+    /// present it). Gives up after a second if the page never answers.
+    public func finishInteractions() async {
+        if inlineEdit != nil {
+            await withCheckedContinuation { continuation in
+                inlineCommitWaiters.append(continuation)
+                Task { try? await canvas.endTextEditing(commit: true) }
+                Task {
+                    try? await Task.sleep(for: .seconds(1))
+                    self.resumeCommitWaiters()
+                }
+            }
+        }
+        endInteractions()
+        _ = await editChain?.value
+    }
+
+    func resumeCommitWaiters() {
+        let waiters = inlineCommitWaiters
+        inlineCommitWaiters = []
+        waiters.forEach { $0.resume() }
     }
 
     private func commitText(_ text: String, to element: MappedElement) async {

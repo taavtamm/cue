@@ -25,7 +25,10 @@ public struct ImportDestination: Sendable, Equatable {
             let tag = suffix == 1 ? "Cue" : "Cue \(suffix)"
             let html = folder.appendingPathComponent("\(name) (\(tag)).html")
             let assets = folder.appendingPathComponent("\(name) (\(tag)) assets", isDirectory: true)
-            let htmlFree = !fileManager.fileExists(atPath: html.path) || isCueOutput(html)
+            // A Cue copy of a *different* original with the same name (Talk.pptx
+            // vs Talk.pdf) isn't this source's slot: move on to the next suffix.
+            let htmlFree = !fileManager.fileExists(atPath: html.path)
+                || isCueOutput(html, importedFrom: source.lastPathComponent)
             let assetsFree = !fileManager.fileExists(atPath: assets.path) || isCueAssets(assets)
             if htmlFree && assetsFree {
                 return ImportDestination(htmlURL: html, assetsURL: assets, isRelocated: relocated)
@@ -39,12 +42,15 @@ public struct ImportDestination: Sendable, Equatable {
             .appendingPathComponent("Cue Imports", isDirectory: true)
     }
 
-    /// Cue's own import output carries `<meta name="cue:imported-from">` near the top.
-    public static func isCueOutput(_ html: URL) -> Bool {
+    /// Cue's own import output carries `<meta name="cue:imported-from">` near
+    /// the top. With `source`, it must also name that original file.
+    public static func isCueOutput(_ html: URL, importedFrom source: String? = nil) -> Bool {
         guard let handle = try? FileHandle(forReadingFrom: html) else { return false }
         defer { try? handle.close() }
-        let head = (try? handle.read(upToCount: 4096)) ?? Data()
-        return String(decoding: head, as: UTF8.self).contains("name=\"cue:imported-from\"")
+        let head = String(decoding: (try? handle.read(upToCount: 4096)) ?? Data(), as: UTF8.self)
+        guard head.contains("name=\"cue:imported-from\"") else { return false }
+        guard let source else { return true }
+        return head.contains("name=\"cue:imported-from\" content=\"\(HTMLText.attribute(source))\"")
     }
 
     static func isCueAssets(_ folder: URL) -> Bool {

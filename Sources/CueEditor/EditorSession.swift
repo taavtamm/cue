@@ -29,6 +29,8 @@ public final class EditorSession {
     /// Called after every successful edit, undo or redo (thumbnails, window title).
     @ObservationIgnored public var onDocumentChanged: ((EditResult) -> Void)?
     @ObservationIgnored var editChain: Task<Bool, Never>?
+    /// Callers of `finishInteractions()` waiting for the page's final text.
+    @ObservationIgnored var inlineCommitWaiters: [CheckedContinuation<Void, Never>] = []
     @ObservationIgnored var notesDebounce: [Int: Task<Void, Never>] = [:]
 
     public init(document: DeckDocument, askQueue: AskRequestQueue = AskRequestQueue()) {

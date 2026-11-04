@@ -66,6 +66,26 @@ struct ImportServiceTests {
         #expect(try String(contentsOf: theirs, encoding: .utf8) == "<html>someone else's file</html>")
     }
 
+    /// Talk.pptx and Talk.pdf share a base name. Each gets its own copy, and
+    /// opening one never opens (or replaces) the other's conversion.
+    @Test func originalsWithTheSameNameGetSeparateCopies() async throws {
+        let folder = TempFolder()
+        let pptx = try folder.file("Talk.pptx", Self.sampleDeck())
+        let pdf = folder.url.appendingPathComponent("Talk.pdf")
+        TestImages.pdf(pages: [CGSize(width: 720, height: 405)], to: pdf)
+        let service = ImportService()
+
+        let fromPPTX = try await service.prepare(pptx)
+        let fromPDF = try await service.prepare(pdf)
+        #expect(fromPPTX.htmlURL.lastPathComponent == "Talk (Cue).html")
+        #expect(fromPDF.htmlURL.lastPathComponent == "Talk (Cue 2).html")
+        #expect(fromPDF.report != nil, "the PDF was converted, not given the PowerPoint copy")
+        #expect(try DeckDocument(contentsOf: fromPPTX.htmlURL).structure.slides.count == 3)
+
+        let again = try await service.prepare(pptx)
+        #expect(again.htmlURL == fromPPTX.htmlURL && again.reusedCopy != nil)
+    }
+
     @Test func writesToCueImportsWhenTheFolderIsReadOnly() async throws {
         let folder = TempFolder(), fallback = TempFolder()
         let original = try folder.file("Deck.pptx", Self.sampleDeck())

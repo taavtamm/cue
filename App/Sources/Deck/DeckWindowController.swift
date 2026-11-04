@@ -14,6 +14,8 @@ final class DeckWindowController: NSWindowController, NSWindowDelegate {
 
     let thumbnails: ThumbnailStore
     private var show: ShowSession?
+    /// Between Play and the show starting (inline text is still committing).
+    private var isStartingShow = false
     private lazy var displays = DisplayCoordinator(sidecarURL: deck.sidecarURL)
     private var displaysWindow: DisplaysWindowController?
     private lazy var network = DeckNetworkAccess(document: deck)
@@ -80,7 +82,7 @@ final class DeckWindowController: NSWindowController, NSWindowDelegate {
             showDisplays: { [weak self] in self?.showDisplays(nil) },
             addSlide: { [weak self] in self?.edit(.addSlide(after: self?.session.slide ?? 0, html: nil), thenShow: 1) },
             duplicateSlide: { [weak self] index in self?.duplicate(index) },
-            deleteSlide: { [weak self] index in self?.edit(.deleteSlide(index), thenShow: 0) },
+            deleteSlide: { [weak self] index in self?.delete(index) },
             moveSlide: { [weak self] from, to in self?.move(from, to) }
         )
     }
@@ -92,6 +94,15 @@ final class DeckWindowController: NSWindowController, NSWindowDelegate {
         Task {
             let target = session.slide + offset
             if await session.apply(operation) { session.showSlide(target) }
+        }
+    }
+
+    private func delete(_ index: Int) {
+        let target = SlideAfterDelete.index(
+            deleting: index, current: session.slide, countBefore: session.structure.slides.count
+        )
+        Task {
+            if await session.apply(.deleteSlide(index)) { session.showSlide(target) }
         }
     }
 
@@ -130,8 +141,16 @@ final class DeckWindowController: NSWindowController, NSWindowDelegate {
 
     /// Shows the deck as it is now, unsaved edits included.
     func present(fromSlide slide: Int, mode: ShowSession.Mode = .present) {
-        guard show == nil else { return }
-        session.endInteractions()
+        guard show == nil, !isStartingShow else { return }
+        isStartingShow = true
+        Task {
+            await session.finishInteractions() // Text being typed on the slide is part of the show.
+            isStartingShow = false
+            startShow(fromSlide: slide, mode: mode)
+        }
+    }
+
+    private func startShow(fromSlide slide: Int, mode: ShowSession.Mode) {
         let show = ShowSession(deck: session.document, startSlide: slide, mode: mode, displays: displays)
         show.onOpenDisplays = { [weak self] in self?.showDisplays(nil) }
         show.onEnd = { [weak self] lastSlide in

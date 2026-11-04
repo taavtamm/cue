@@ -40,6 +40,9 @@ cue.createPassthroughPlayer = (config) => {
     const index = visibleIndex();
     if (index === reported) return;
     reported = index;
+    // The deck may have moved on its own (a click, a timer). What it shows is
+    // now the starting point, so Swift's echo of it isn't read as a step.
+    commanded = { slide: index, build: 0 };
     cue.post('position', { slide: index, build: 0 });
   }
 
@@ -72,6 +75,7 @@ cue.createPassthroughPlayer = (config) => {
   function show(position) {
     const from = commanded || { slide: Math.max(0, reported), build: 0 };
     commanded = position;
+    if (position.slide === from.slide && position.build === from.build) return reportSoon(); // Already there.
     const forward = position.slide > from.slide || (position.slide === from.slide && position.build > from.build);
     const backward = position.slide < from.slide || (position.slide === from.slide && position.build < from.build);
     if (Math.abs(position.slide - from.slide) > 1) {
@@ -86,5 +90,5 @@ cue.createPassthroughPlayer = (config) => {
   }
 
   reportSoon();
-  return { name: 'passthrough', slideCount: Math.max(1, slides().length), slides: slides(), show, debug: () => ({ reported }) };
+  return { name: 'passthrough', slideCount: Math.max(1, slides().length), slides: slides(), show, debug: () => ({ reported, current: commanded }) };
 };

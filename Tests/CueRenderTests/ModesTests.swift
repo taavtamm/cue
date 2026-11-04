@@ -82,6 +82,24 @@ struct ModesTests {
         #expect(present == "C")
     }
 
+    /// The deck moves on by itself (a click, a timer); Swift follows and
+    /// echoes that slide back. The echo must not press → a second time.
+    @Test func passthroughDoesNotReplayTheDecksOwnNavigation() async throws {
+        let harness = RendererHarness()
+        defer { harness.close() }
+        try await harness.load(try Fixture.deck(html: Self.revealLikeDeck))
+        _ = try await harness.renderer.evaluateInPage("go(1)")
+        try await harness.waitUntil("the deck reports slide 2") {
+            harness.events.contains { if case .position(let p) = $0 { p.slide == 1 } else { false } }
+        }
+        harness.renderer.show(ShowPosition(slide: 1)) // What ShowSession sends after following.
+        try await Task.sleep(for: .milliseconds(300))
+        let present: Int = try await harness.evaluate(
+            "return Array.from(document.querySelectorAll('.slides > section')).findIndex((s) => s.classList.contains('present'))"
+        )
+        #expect(present == 1)
+    }
+
     @Test func deckScriptsCannotReachTheNetworkOpenWindowsOrSeeTheBridge() async throws {
         let harness = RendererHarness()
         defer { harness.close() }

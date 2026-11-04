@@ -12,6 +12,8 @@ final class DeckNetworkAccess {
     private(set) var request: NetworkRequest?
     /// Set when the deck's scripts hung and Cue turned them off.
     private(set) var scriptsStopped = false
+    /// The sidecar couldn't be read, so choices aren't saved (it is never overwritten).
+    private(set) var saveError: String?
     /// Called after the user allows hosts, so surfaces can reload with them.
     var onAllowed: (() -> Void)?
 
@@ -44,8 +46,7 @@ final class DeckNetworkAccess {
 
     func allow() {
         guard let request else { return }
-        sidecar.allowedHosts = Array(Set(sidecar.allowedHosts + request.hosts)).sorted()
-        save()
+        save { $0.allowedHosts = Array(Set($0.allowedHosts + request.hosts)).sorted() }
         refresh()
         onAllowed?()
     }
@@ -57,8 +58,7 @@ final class DeckNetworkAccess {
 
     func never() {
         guard let request else { return }
-        sidecar.deniedHosts = Array(Set(sidecar.deniedHosts + request.hosts)).sorted()
-        save()
+        save { $0.deniedHosts = Array(Set($0.deniedHosts + request.hosts)).sorted() }
         refresh()
     }
 
@@ -70,12 +70,18 @@ final class DeckNetworkAccess {
         )
     }
 
-    private func save() {
-        // Re-read first so choices made elsewhere (display roles, timings) survive.
-        var latest = (try? CueSidecar.load(from: sidecarURL)) ?? CueSidecar()
-        latest.allowedHosts = sidecar.allowedHosts
-        latest.deniedHosts = sidecar.deniedHosts
-        sidecar = latest
-        try? latest.save(to: sidecarURL)
+    /// Merges a choice into the sidecar on disk, keeping everything else in it
+    /// (display roles, timings, other choices made meanwhile). If the file
+    /// can't be read, it is left alone and the choice applies to this session.
+    private func save(_ change: (inout CueSidecar) -> Void) {
+        change(&sidecar)
+        do {
+            try CueSidecar.update(at: sidecarURL, change)
+            sidecar = try CueSidecar.load(from: sidecarURL)
+            saveError = nil
+        } catch {
+            saveError = "Couldn't save to \(sidecarURL.lastPathComponent): \(error.localizedDescription)"
+            NSLog("Cue: %@", saveError ?? "")
+        }
     }
 }

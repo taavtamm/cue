@@ -167,3 +167,25 @@ extension SessionHarness {
         return try #require(found)
     }
 }
+
+/// Play while typing on the slide: the show must get the typed text.
+@Suite("Finishing interactions", .serialized)
+@MainActor
+struct FinishInteractionsTests {
+    @Test func finishingWaitsForTheTypedTextToLand() async throws {
+        let document = try await EditorFixture.document(try EditorFixture.copy("demo-deck.html"))
+        let harness = SessionHarness(document)
+        defer { harness.close() }
+        try await harness.load(slide: 2)
+        let heading = try #require(document.heading(onSlide: 2))
+        _ = await harness.session.click(at: try await harness.centre(of: heading.cueID))
+        await harness.session.beginInlineEdit()
+        #expect(harness.session.inlineEdit != nil)
+        _ = try await harness.session.canvas.evaluateInBridge(
+            "document.querySelector('[contenteditable]').textContent = 'Typed just before Play'; return true"
+        )
+        await harness.session.finishInteractions()
+        #expect(harness.session.inlineEdit == nil)
+        #expect(harness.session.document.source.contains("Typed just before Play"))
+    }
+}

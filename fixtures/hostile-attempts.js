@@ -220,16 +220,24 @@
   });
 
   // ---- Freezing the show. ----
+  // A dialog that really opened would wait for a person, so any single call
+  // taking seconds means it blocked. The total time isn't checked: on a busy
+  // machine 300 round trips to Cue can add up without anything blocking.
   attempt('dialog spam', (leak, block) => {
-    const start = Date.now();
     let answers = 0;
+    let slowest = 0;
+    const timed = (call) => {
+      const start = Date.now();
+      const result = call();
+      slowest = Math.max(slowest, Date.now() - start);
+      return result;
+    };
     for (let i = 0; i < 100; i += 1) {
-      alert('spam');
-      if (confirm('ok?')) answers += 1;
-      if (prompt('name?') !== null) answers += 1;
+      timed(() => alert('spam'));
+      if (timed(() => confirm('ok?'))) answers += 1;
+      if (timed(() => prompt('name?')) !== null) answers += 1;
     }
-    const took = Date.now() - start;
-    return took < 2000 && answers === 0 ? block('returned at once') : leak();
+    return slowest < 1500 && answers === 0 ? block('returned at once') : leak();
   });
   attempt('busy loop 1.5 s', (leak, block) => {
     const until = Date.now() + 1500;
