@@ -29,5 +29,15 @@ cue.handlers.show = ({ position, finished }) => {
 
 cue.handlers.setPaused = ({ value }) => cue.pause.set(value === true);
 
+/** Pausing swaps live embeds for stills (62-freeze.js): stop them first. */
+cue.onFreeze = () => {
+  if (player && player.stopEmbeds) player.stopEmbeds();
+};
+
+/** After a pause, the stills are gone: start the live embeds again. */
+cue.onThaw = () => {
+  if (player && player.restartEmbeds) player.restartEmbeds();
+};
+
 /** For tests and the web inspector. Lives only in Cue's world. */
 cue.debug = () => (player ? Object.assign({ player: player.name }, player.debug()) : null);

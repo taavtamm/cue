@@ -34,6 +34,8 @@ public final class SlideRenderer: NSView {
     private(set) var position = ShowPosition.start
     private var finished = false
     private var paused = false
+    /// True while paused; embeds show frozen stills (`SlideRenderer+Freeze`).
+    var isPausedForEditing: Bool { paused }
 
     public init(surface: SurfaceKind) {
         self.surface = surface
@@ -108,6 +110,12 @@ public final class SlideRenderer: NSView {
         self.finished = finished
         guard isReady else { return } // Applied on ready.
         send(.show(position, finished: finished))
+        if paused { // The new slide's embeds start live; freeze them once they've drawn.
+            Task {
+                try? await Task.sleep(for: Self.freezeDelay)
+                if self.paused { await self.freezeEmbeds() }
+            }
+        }
     }
 
     public func setCover(black: Bool = false, white: Bool = false) {
@@ -119,10 +127,13 @@ public final class SlideRenderer: NSView {
     /// Pauses Web Animations and media in the page. Scripts with their own
     /// requestAnimationFrame loops keep running.
     public func setPaused(_ paused: Bool) {
+        let changed = paused != self.paused
         self.paused = paused
         guard let webView, isReady else { return }
         send(.setPaused(paused))
         webView.setAllMediaPlaybackSuspended(paused)
+        guard changed else { return }
+        Task { paused ? await freezeEmbeds() : await thawEmbeds() }
     }
 
     /// A picture of the surface as rendered right now, cover included.
@@ -170,8 +181,11 @@ public final class SlideRenderer: NSView {
         if case .ready(let count) = event {
             isReady = true
             slideCount = count
-            send(.show(position, finished: finished))
-            if paused { setPaused(true) }
+            if paused { // A reload while paused: pause the page again and freeze its embeds once drawn.
+                send(.setPaused(true))
+                webView?.setAllMediaPlaybackSuspended(true)
+            }
+            show(position, finished: finished)
             webView?.alphaValue = 1
             if let sourceManifest {
                 Task {

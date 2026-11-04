@@ -152,6 +152,12 @@ cue.createClaudeDesignPlayer = (config) => {
     slides,
     show,
     liveSlides: embeds.slidesWithEmbeds,
+    stopEmbeds: () => embeds.stop(),
+    restartEmbeds() {
+      if (!current || !runsEmbeds) return;
+      embeds.stop();
+      embeds.start(current.slide);
+    },
     debug: () => ({ current, embeds: embeds.runningCount() }),
   };
 };
