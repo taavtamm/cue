@@ -87,7 +87,7 @@ struct TimelinePanel: View {
     }
 
     private func style(_ row: TimelineLayout.Row) -> TimelineTrack.Style {
-        row.isEmbed ? .embed : (row.loops ? .loop : .animation)
+        row.loops ? .loop : .animation
     }
 
     private func tint(_ row: TimelineLayout.Row) -> Color {

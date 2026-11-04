@@ -3,16 +3,26 @@ import SwiftUI
 /// The near-black ground with three large, soft colour pools
 /// (purple top-left, blue top-right, wine bottom) from the designs.
 public struct CueBackground: View {
-    public init() {}
+    var groundOpacity: Double
+    var poolOpacity: Double
+
+    /// Opaque by default. Lower opacities turn it into a tint over glass.
+    public init(groundOpacity: Double = 1, poolOpacity: Double = 1) {
+        self.groundOpacity = groundOpacity
+        self.poolOpacity = poolOpacity
+    }
 
     public var body: some View {
         GeometryReader { geo in
             let size = geo.size
             ZStack {
-                CueTheme.ground
-                pool(CueTheme.poolPurple, at: UnitPoint(x: 0.14, y: 0.12), size: size, scale: 0.65)
-                pool(CueTheme.poolBlue, at: UnitPoint(x: 0.9, y: 0.2), size: size, scale: 0.58)
-                pool(CueTheme.poolWine, at: UnitPoint(x: 0.62, y: 1.05), size: size, scale: 0.7)
+                CueTheme.ground.opacity(groundOpacity)
+                Group {
+                    pool(CueTheme.poolPurple, at: UnitPoint(x: 0.14, y: 0.12), size: size, scale: 0.65)
+                    pool(CueTheme.poolBlue, at: UnitPoint(x: 0.9, y: 0.2), size: size, scale: 0.58)
+                    pool(CueTheme.poolWine, at: UnitPoint(x: 0.62, y: 1.05), size: size, scale: 0.7)
+                }
+                .opacity(poolOpacity)
             }
         }
         .ignoresSafeArea()

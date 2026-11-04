@@ -26,16 +26,13 @@ final class DeckWindowController: NSWindowController, NSWindowDelegate {
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered, defer: false
         )
-        window.titlebarAppearsTransparent = true
-        window.titleVisibility = .hidden
-        window.backgroundColor = .black
         window.minSize = CGSize(width: 1100, height: 720)
         window.setFrameAutosaveName("EditorWindow")
         super.init(window: window)
         window.title = session.title
         window.representedURL = deck.fileURL
         window.delegate = self
-        window.contentView = NSHostingView(rootView: makeEditor())
+        window.useCueGlass(makeEditor())
         if window.frame.origin == .zero { window.center() }
         wireUp()
         Task { await load() }
@@ -70,7 +67,9 @@ final class DeckWindowController: NSWindowController, NSWindowDelegate {
         }
         await thumbnails.load(session.document)
         #if DEBUG
-        EditorSnapshots.captureIfRequested(window: window, session: session)
+        EditorSnapshots.captureIfRequested(window: window, session: session) { [unowned self] in
+            AnyView(self.makeEditor())
+        }
         #endif
     }
 

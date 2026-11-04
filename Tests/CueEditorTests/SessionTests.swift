@@ -111,7 +111,7 @@ struct SessionTests {
             await harness.session.refreshAnimations()
             return harness.session.animations.embedCount > 0
         }
-        #expect(harness.session.timeline.rows.contains { $0.isEmbed })
+        #expect(harness.session.timeline.rows.allSatisfy { !$0.title.localizedCaseInsensitiveContains("embed") })
     }
 
     @Test func doubleClickOnALiveEmbedLetsItTakeClicks() async throws {

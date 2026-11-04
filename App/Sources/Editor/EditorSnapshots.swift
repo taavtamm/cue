@@ -12,7 +12,9 @@ import SwiftUI
 ///     Cue -open deck.html -snapshotDir /tmp/shots -snapshotSlides 3
 @MainActor
 enum EditorSnapshots {
-    static func captureIfRequested(window: NSWindow?, session: EditorSession) {
+    /// `chrome` builds the editor's SwiftUI root; the window's own content is
+    /// the glass view, which ImageRenderer can't draw.
+    static func captureIfRequested(window: NSWindow?, session: EditorSession, chrome: @escaping () -> AnyView) {
         guard let request = ShowSnapshots.request, let window else { return }
         Task {
             try? FileManager.default.createDirectory(at: request.folder, withIntermediateDirectories: true)
@@ -22,12 +24,14 @@ enum EditorSnapshots {
                 try? await Task.sleep(for: .seconds(1.5))
                 await selectHeading(in: session)
                 try? await Task.sleep(for: .seconds(1))
-                await save(window, session: session, to: request.folder.appending(path: "editor-slide\(slide + 1).png"))
+                await save(window, session: session, chrome: chrome(),
+                           to: request.folder.appending(path: "editor-slide\(slide + 1).png"))
             }
             for mode in [EditorMode.html, .outline] {
                 session.mode = mode
                 try? await Task.sleep(for: .seconds(1))
-                await save(window, session: session, to: request.folder.appending(path: "editor-\(mode.rawValue).png"))
+                await save(window, session: session, chrome: chrome(),
+                           to: request.folder.appending(path: "editor-\(mode.rawValue).png"))
             }
             session.mode = .design
         }
@@ -43,9 +47,10 @@ enum EditorSnapshots {
         if let heading { await session.select(cueID: heading.cueID) }
     }
 
-    private static func save(_ window: NSWindow, session: EditorSession, to url: URL) async {
-        guard let view = window.contentView, let hosting = view as? NSHostingView<EditorView> else { return }
-        let chrome = AnyView(hosting.rootView.environment(\.cueRendersStatically, true))
+    private static func save(_ window: NSWindow, session: EditorSession, chrome root: AnyView, to url: URL) async {
+        guard let view = window.contentView else { return }
+        let chrome = AnyView(ZStack { CueBackground(); root.background(CueGlassTint()) }
+            .environment(\.cueRendersStatically, true))
         let renderers = session.mode == .design ? [session.canvas] : []
         guard let image = await ShowSnapshots.composite(view, chrome: chrome, renderers: renderers) else { return }
         let overlay = container(in: view).flatMap { $0.overlayImage(in: view) }

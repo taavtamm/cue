@@ -3,9 +3,9 @@ import CueEditor
 import CueUI
 import SwiftUI
 
-/// The editor window's content, as in the design: glass chrome over the
-/// colour-pool ground; toolbar on top; slides, the real slide and the
-/// inspector below.
+/// The editor window's content, as in the design. The window itself is the
+/// tinted glass (see `NSWindow.useCueGlass`); the toolbar shares its row
+/// with the traffic lights; slides, the real slide and the inspector below.
 struct EditorView: View {
     @Bindable var session: EditorSession
     let thumbnails: ThumbnailStore
@@ -30,9 +30,6 @@ struct EditorView: View {
             .padding(EdgeInsets(top: 0, leading: 8, bottom: 8, trailing: 8))
         }
         .foregroundStyle(CueTheme.text)
-        .cueGlass(.window)
-        .padding(14)
-        .background(CueBackground())
         .animation(.easeOut(duration: 0.18), value: showsSidebar)
     }
 

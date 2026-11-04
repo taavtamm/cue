@@ -15,11 +15,7 @@ final class DisplaysWindowController: NSWindowController {
             backing: .buffered, defer: false
         )
         window.title = "Displays"
-        window.titleVisibility = .hidden
-        window.titlebarAppearsTransparent = true
         window.isMovableByWindowBackground = true
-        window.isOpaque = false
-        window.backgroundColor = .clear
         window.minSize = CGSize(width: 900, height: 600)
         window.isReleasedWhenClosed = false
         super.init(window: window)
@@ -28,8 +24,8 @@ final class DisplaysWindowController: NSWindowController {
             onRehearse: { [weak self] in self?.close(); onRehearse() },
             onStart: { [weak self] in self?.close(); onStart() }
         )
-        window.contentView = NSHostingView(rootView: view)
-        chrome = AnyView(ZStack { CueBackground(); view.padding(40) })
+        window.useCueGlass(view)
+        chrome = AnyView(ZStack { CueBackground(); view.background(CueGlassTint()) })
         window.center()
     }
 

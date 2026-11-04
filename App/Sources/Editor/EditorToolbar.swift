@@ -30,7 +30,7 @@ struct EditorToolbar: View {
             playCluster
         }
         .padding(.horizontal, 16)
-        .frame(height: 60)
+        .frame(height: NSWindow.cueToolbarHeight)
     }
 
     private var titleBlock: some View {

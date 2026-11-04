@@ -11,8 +11,6 @@ public struct TimelineLayout: Sendable, Equatable {
         public let start: Double
         public let width: Double
         public let loops: Bool
-        /// A live web embed: it animates on its own, so it spans the whole row.
-        public let isEmbed: Bool
     }
 
     public let rows: [Row]
@@ -25,19 +23,16 @@ public struct TimelineLayout: Sendable, Equatable {
         let ends = animations.tracks.map { $0.delay + $0.duration * ($0.loops ? 1 : max(1, $0.iterations)) }
         let span = max(Self.minimumSpan, (ends.max() ?? 0).rounded(.up))
         self.span = span
-        var rows = animations.tracks.enumerated().map { index, track in
+        let rows = animations.tracks.enumerated().map { index, track in
             let start = min(1, track.delay / span)
             let runs = track.duration * max(1, track.iterations)
             return Row(
                 id: index, title: Self.title(track), start: start,
-                width: track.loops ? 1 - start : min(1, runs / span), loops: track.loops, isEmbed: false
+                width: track.loops ? 1 - start : min(1, runs / span), loops: track.loops
             )
         }
-        if animations.embedCount > 0 {
-            let count = animations.embedCount
-            let title = count == 1 ? "Web embed · live loop" : "\(count) web embeds · live"
-            rows.append(Row(id: rows.count, title: title, start: 0, width: 1, loops: true, isEmbed: true))
-        }
+        // Live web embeds aren't listed: their timing is inside a sandboxed
+        // frame Cue can't read, so a track for them would show nothing real.
         self.rows = rows
     }
 

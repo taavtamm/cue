@@ -64,10 +64,9 @@ struct TimelineLayoutTests {
             .init(name: "pulse", target: "Dot", delay: 1, duration: 2, iterations: -1, easing: "linear"),
         ], embedCount: 1))
         #expect(layout.span == 4)
-        #expect(layout.rows.count == 3)
+        #expect(layout.rows.count == 2) // Embeds get no track.
         #expect(layout.rows[0].start == 0 && layout.rows[0].width == 0.125)
         #expect(layout.rows[1].loops && layout.rows[1].start == 0.25 && layout.rows[1].width == 0.75)
-        #expect(layout.rows[2].isEmbed && layout.rows[2].title == "Web embed · live loop")
         #expect(layout.ticks == [0, 1, 2, 3, 4])
     }
 

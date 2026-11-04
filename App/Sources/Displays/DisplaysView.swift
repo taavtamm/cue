@@ -19,7 +19,6 @@ struct DisplaysView: View {
             footer
         }
         .foregroundStyle(CueTheme.text)
-        .cueGlass(.window)
     }
 
     private var header: some View {
@@ -36,7 +35,7 @@ struct DisplaysView: View {
         }
         .padding(.leading, 92) // Clear of the window's traffic lights.
         .padding(.trailing, 22)
-        .frame(height: 64)
+        .frame(height: NSWindow.cueToolbarHeight)
     }
 
     @ViewBuilder private var rolePanel: some View {
