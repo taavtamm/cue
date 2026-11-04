@@ -17,6 +17,8 @@ final class DeckWindowController: NSWindowController, NSWindowDelegate {
     /// Between Play and the show starting (inline text is still committing).
     private var isStartingShow = false
     private var keyRouter: EditorKeyRouter?
+    /// The user chose Don't Save: close without asking again.
+    var discardsChanges = false
     private lazy var displays = DisplayCoordinator(sidecarURL: deck.sidecarURL)
     private var displaysWindow: DisplaysWindowController?
     private lazy var network = DeckNetworkAccess(document: deck)

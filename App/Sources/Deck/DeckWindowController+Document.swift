@@ -41,27 +41,33 @@ extension DeckWindowController: NSMenuItemValidation {
         }
     }
 
+    /// Unsaved edits the user hasn't chosen to discard.
+    var needsSaving: Bool { session.isDirty && !discardsChanges }
+
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard session.isDirty else { return true }
-        let alert = NSAlert()
-        alert.messageText = "Save changes to “\(session.title)”?"
-        alert.informativeText = "Your changes will be lost if you don't save them."
-        alert.addButton(withTitle: "Save")
-        alert.addButton(withTitle: "Cancel")
-        alert.addButton(withTitle: "Don't Save")
-        alert.beginSheetModal(for: sender) { [weak self] response in
-            guard let self else { return }
-            switch response {
-            case .alertFirstButtonReturn:
+        guard needsSaving else { return true }
+        askToSave { saved in if saved { sender.close() } }
+        return false
+    }
+
+    /// Asks Save / Don't Save / Cancel for this deck. Calls back with true
+    /// when the window may go (saved or discarded), false when cancelled.
+    func askToSave(_ done: @escaping (Bool) -> Void) {
+        guard needsSaving, let window else { return done(true) }
+        window.makeKeyAndOrderFront(nil)
+        UnsavedChangesPrompt.ask(about: session.document, title: session.title, in: window) { [weak self] choice in
+            guard let self else { return done(true) }
+            switch choice {
+            case .save:
                 self.saveDocument(nil)
-                if !self.session.isDirty { sender.close() }
-            case .alertThirdButtonReturn:
+                done(!self.session.isDirty) // A failed save keeps the window open.
+            case .discard:
                 self.window?.isDocumentEdited = false
-                sender.close()
-            default:
-                break
+                self.discardsChanges = true
+                done(true)
+            case .cancel:
+                done(false)
             }
         }
-        return false
     }
 }

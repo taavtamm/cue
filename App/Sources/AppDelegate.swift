@@ -48,6 +48,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
+    /// Quitting with unsaved decks asks first, like closing their windows:
+    /// one deck gets its own Save / Don't Save; several get Review Changes.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        let unsaved = deckWindows.filter(\.needsSaving)
+        switch unsaved.count {
+        case 0:
+            return .terminateNow
+        case 1:
+            review(unsaved)
+            return .terminateLater
+        default:
+            switch UnsavedChangesPrompt.askBeforeQuitting(count: unsaved.count) {
+            case .cancel: return .terminateCancel
+            case .discardAll: return .terminateNow
+            case .review:
+                review(unsaved)
+                return .terminateLater
+            }
+        }
+    }
+
+    /// Asks about each deck in turn; Cancel on any of them stops the quit.
+    private func review(_ decks: [DeckWindowController]) {
+        guard let deck = decks.first else { return NSApp.reply(toApplicationShouldTerminate: true) }
+        deck.askToSave { [weak self] mayClose in
+            guard mayClose, let self else { return NSApp.reply(toApplicationShouldTerminate: false) }
+            self.review(Array(decks.dropFirst()))
+        }
+    }
+
     /// Clicking the Dock icon with nothing open brings the Welcome window back.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
         if !hasVisibleWindows && deckWindows.isEmpty { showWelcome(nil) }
