@@ -16,6 +16,7 @@ final class DeckWindowController: NSWindowController, NSWindowDelegate {
     private var show: ShowSession?
     /// Between Play and the show starting (inline text is still committing).
     private var isStartingShow = false
+    private var keyRouter: EditorKeyRouter?
     private lazy var displays = DisplayCoordinator(sidecarURL: deck.sidecarURL)
     private var displaysWindow: DisplaysWindowController?
     private lazy var network = DeckNetworkAccess(document: deck)
@@ -37,6 +38,10 @@ final class DeckWindowController: NSWindowController, NSWindowDelegate {
         window.useCueGlass(makeEditor())
         if window.frame.origin == .zero { window.center() }
         wireUp()
+        keyRouter = EditorKeyRouter(window: window, session: session, actions: .init(
+            delete: { [weak self] index in self?.delete(index) },
+            move: { [weak self] from, to in self?.move(from, to) }
+        ))
         Task { await load() }
     }
 
@@ -171,6 +176,7 @@ final class DeckWindowController: NSWindowController, NSWindowDelegate {
     }
 
     func windowWillClose(_ notification: Notification) {
+        keyRouter?.stop()
         show?.end()
         thumbnails.close()
         onClose?()

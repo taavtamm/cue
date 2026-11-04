@@ -9,6 +9,7 @@ extension EditorSession {
     /// Selects the source element under a point on the canvas.
     @discardableResult
     public func click(at point: CGPoint) async -> EditorSelection? {
+        keyFocus = .canvas
         endInteractions()
         guard let hit = try? await canvas.element(at: point) else {
             selection = nil

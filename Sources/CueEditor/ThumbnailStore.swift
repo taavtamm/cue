@@ -16,6 +16,8 @@ public final class ThumbnailStore {
     @ObservationIgnored private var pending: [Int] = []
     @ObservationIgnored private var drawing: Task<Void, Never>?
     @ObservationIgnored private var slideCount = 0
+    /// The slides' identities when they were last drawn, to follow moves.
+    @ObservationIgnored private var slideIDs: [String] = []
 
     public init(canvas: CanvasSize, width: CGFloat = 384) {
         let size = CGSize(width: width, height: (width * canvas.height / max(1, canvas.width)).rounded())
@@ -24,17 +26,28 @@ public final class ThumbnailStore {
         window.orderFrontRegardless() // WebKit only renders pages in windows on screen.
     }
 
-    /// Loads the deck and draws every slide, first to last.
+    /// Loads the deck and draws every slide. Pictures of slides that are
+    /// still in the deck stay up (moved to their new place) until redrawn,
+    /// so the sidebar never blanks; new or changed slides are drawn first.
     public func load(_ document: DeckDocument) async {
-        slideCount = document.structure.slides.count
+        let ids = SlideIdentity.ids(document.structure.slides)
+        let moved = SlideIdentity.mapping(before: slideIDs, after: ids)
+        var kept: [Int: NSImage] = [:]
+        for (old, new) in moved { kept[new] = images[old] }
+        images = kept
+        slideIDs = ids
+        slideCount = ids.count
+        drawing?.cancel()
+        drawing = nil
+        pending = []
         renderer.sourceManifest = document.liveManifest
-        images = [:]
         do {
             try await renderer.load(DeckSource(document: document))
         } catch {
             return
         }
-        redraw(Array(0..<slideCount))
+        let fresh = (0..<slideCount).filter { kept[$0] == nil }
+        redraw(fresh + (0..<slideCount).filter { kept[$0] != nil })
     }
 
     /// Brings the thumbnails up to date with an edit made on `slide`.
@@ -66,7 +79,8 @@ public final class ThumbnailStore {
     private func drawPending() async {
         while !pending.isEmpty, !Task.isCancelled {
             let slide = pending.removeFirst()
-            if let image = await draw(slide) { images[slide] = image }
+            guard slide < slideCount else { continue } // Deleted meanwhile.
+            if let image = await draw(slide), !Task.isCancelled { images[slide] = image }
         }
     }
 

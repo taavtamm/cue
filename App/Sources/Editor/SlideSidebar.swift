@@ -9,6 +9,9 @@ struct SlideSidebar: View {
     let thumbnails: ThumbnailStore
     let actions: EditorActions
     @Environment(\.isSnapshotRendering) private var isSnapshot
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// The gap a dragged slide would drop into, while one is dragged.
+    @State private var dropGap: Int?
 
     var body: some View {
         Group {
@@ -19,7 +22,8 @@ struct SlideSidebar: View {
                     ScrollView { cells }
                         .scrollIndicators(.never)
                         .onChange(of: session.slide) {
-                            withAnimation { scroller.scrollTo(session.slide, anchor: .center) }
+                            guard ids.indices.contains(session.slide) else { return }
+                            withAnimation { scroller.scrollTo(ids[session.slide], anchor: .center) }
                         }
                 }
             }
@@ -35,12 +39,18 @@ struct SlideSidebar: View {
     private var cells: some View {
         LazyVStack(alignment: .leading, spacing: 4) {
             header
-            ForEach(session.structure.slides.indices, id: \.self) { index in
-                cell(index).id(index)
+            // Identified by slide, not position, so moves and deletes animate.
+            ForEach(Array(ids.enumerated()), id: \.element) { index, id in
+                cell(index)
+                    .id(id)
+                    .transition(.opacity.combined(with: .scale(scale: 0.94)))
             }
         }
         .padding(EdgeInsets(top: 10, leading: 10, bottom: 16, trailing: 10))
+        .animation(reduceMotion ? nil : .snappy(duration: 0.28), value: ids)
     }
+
+    private var ids: [String] { SlideIdentity.ids(session.structure.slides) }
 
     private var header: some View {
         HStack {
@@ -68,13 +78,12 @@ struct SlideSidebar: View {
     /// Click to show, drag to reorder, and the context menu. Not in snapshots,
     /// which can't draw drag sources.
     private func interactive(_ cell: some View, _ index: Int) -> some View {
-        cell
-            .onTapGesture { session.showSlide(index) }
-            .draggable(SlideDrag(index: index))
-            .dropDestination(for: SlideDrag.self) { items, _ in
-                guard let from = items.first?.index, from != index else { return false }
-                actions.moveSlide(from, index)
-                return true
+        SlideSidebarRow(index: index, count: ids.count, gap: $dropGap, cell: cell) { from, gap in
+            if let to = SlideReorder.destination(moving: from, toGap: gap) { actions.moveSlide(from, to) }
+        }
+            .onTapGesture {
+                session.keyFocus = .sidebar
+                session.showSlide(index)
             }
             .contextMenu {
                 Button("Add Slide After") {
@@ -86,13 +95,5 @@ struct SlideSidebar: View {
                 Button("Delete Slide", role: .destructive) { actions.deleteSlide(index) }
                     .disabled(session.slideCount <= 1)
             }
-    }
-}
-
-/// A slide being dragged within the sidebar.
-struct SlideDrag: Codable, Transferable {
-    let index: Int
-    static var transferRepresentation: some TransferRepresentation {
-        CodableRepresentation(contentType: .data)
     }
 }

@@ -28,6 +28,8 @@ public final class EditorSession {
 
     /// Called after every successful edit, undo or redo (thumbnails, window title).
     @ObservationIgnored public var onDocumentChanged: ((EditResult) -> Void)?
+    /// Where the last click was: decides what arrows and Delete do.
+    public var keyFocus = EditorKeyFocus.canvas
     @ObservationIgnored var editChain: Task<Bool, Never>?
     /// Callers of `finishInteractions()` waiting for the page's final text.
     @ObservationIgnored var inlineCommitWaiters: [CheckedContinuation<Void, Never>] = []

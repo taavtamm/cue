@@ -11,14 +11,26 @@ extension EditorSession {
         await serialized { document in try document.apply(operation) }
     }
 
+    /// Undoes the last edit. If it added, removed or moved a slide, shows
+    /// that slide, so undoing a delete brings you to the slide it restored.
     @discardableResult
     public func undo() async -> Bool {
-        await serialized { document in try document.undo() }
+        await showingChangedSlide { await serialized { document in try document.undo() } }
     }
 
     @discardableResult
     public func redo() async -> Bool {
-        await serialized { document in try document.redo() }
+        await showingChangedSlide { await serialized { document in try document.redo() } }
+    }
+
+    private func showingChangedSlide(_ change: () async -> Bool) async -> Bool {
+        let before = SlideIdentity.ids(structure.slides)
+        guard await change() else { return false }
+        let after = SlideIdentity.ids(structure.slides)
+        if let changed = SlideIdentity.firstDifference(before: before, after: after) {
+            showSlide(min(changed, max(0, after.count - 1)))
+        }
+        return true
     }
 
     /// Writes the deck. Unchanged decks go back out byte for byte.
