@@ -3,7 +3,7 @@ import CueUI
 import SwiftUI
 
 /// The middle of the editor in Design mode: where the selection sits, the
-/// real slide, the Ask bar, and the slide's animation timeline.
+/// real slide, the Ask bar, and the slide's notes or animation timeline.
 struct DesignCanvasArea: View {
     @Bindable var session: EditorSession
 
@@ -28,8 +28,8 @@ struct DesignCanvasArea: View {
             }
             EditorAskBar(session: session)
                 .frame(height: 84)
-            TimelinePanel(session: session)
-                .frame(height: 170)
+            SlideBottomPanel(session: session)
+                .frame(height: 190)
         }
     }
 

@@ -3,44 +3,20 @@ import CueUI
 import SwiftUI
 
 /// The slide's animations, read from the page (`document.getAnimations()`),
-/// as bars on a time ruler with a moving playhead. Preview replays them.
+/// as bars on a time ruler with a moving playhead.
 struct TimelinePanel: View {
     let session: EditorSession
-    @State private var playheadStart = Date()
+    /// Restarted by Preview and on slide change (owned by `SlideBottomPanel`).
+    @Binding var playheadStart: Date
 
     var body: some View {
         let layout = session.timeline
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 10) {
-                Text("Timeline").font(.system(size: 12, weight: .semibold))
-                Text(caption(layout)).font(.system(size: 11.5)).foregroundStyle(CueTheme.textTertiary)
-                Spacer()
-                Button {
-                    playheadStart = Date()
-                    Task { await session.replayAnimations() }
-                } label: {
-                    Label("Preview", systemImage: "play.fill").font(.system(size: 11.5))
-                }
-                .buttonStyle(.cue(height: 26))
-                .disabled(layout.rows.isEmpty)
-            }
-            if layout.rows.isEmpty {
-                Text("No animations on this slide.").font(.system(size: 11.5)).foregroundStyle(CueTheme.textTertiary)
-                Spacer(minLength: 0)
-            } else {
-                tracks(layout)
-            }
+        if layout.rows.isEmpty {
+            Text("No animations on this slide.").font(.system(size: 11.5)).foregroundStyle(CueTheme.textTertiary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        } else {
+            tracks(layout)
         }
-        .padding(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
-        .background(Color.black.opacity(0.28), in: RoundedRectangle(cornerRadius: 18))
-        .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(Color.white.opacity(0.07)))
-        .padding(EdgeInsets(top: 4, leading: 16, bottom: 0, trailing: 16))
-        .onChange(of: session.slide) { playheadStart = Date() }
-    }
-
-    private func caption(_ layout: TimelineLayout) -> String {
-        let count = layout.rows.count
-        return count == 0 ? "" : "Animations running on this slide · \(count) track\(count == 1 ? "" : "s")"
     }
 
     private func tracks(_ layout: TimelineLayout) -> some View {

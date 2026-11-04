@@ -52,7 +52,8 @@ enum EditorSnapshots {
         let chrome = AnyView(ZStack { CueBackground(); root.background(CueGlassTint()) }
             .environment(\.cueRendersStatically, true))
         let renderers = session.mode == .design ? [session.canvas] : []
-        guard let image = await ShowSnapshots.composite(view, chrome: chrome, renderers: renderers) else { return }
+        let image = await ShowSnapshots.composite(view, chrome: chrome, renderers: renderers, drawsUnderTitleBar: true)
+        guard let image else { return }
         let overlay = container(in: view).flatMap { $0.overlayImage(in: view) }
         let final = NSImage(size: image.size, flipped: false) { bounds in
             image.draw(in: bounds)

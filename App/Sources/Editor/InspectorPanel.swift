@@ -2,9 +2,9 @@ import CueEditor
 import CueUI
 import SwiftUI
 
-/// The inspector on the right: Design / Animate / Notes.
+/// The inspector on the right: Design / Animate. Notes live under the slide.
 struct InspectorPanel: View {
-    enum Tab: String, CaseIterable { case design = "Design", animate = "Animate", notes = "Notes" }
+    enum Tab: String, CaseIterable { case design = "Design", animate = "Animate" }
 
     let session: EditorSession
     @State private var tab = Tab.design
@@ -16,7 +16,6 @@ struct InspectorPanel: View {
             switch tab {
             case .design: DesignInspector(session: session)
             case .animate: AnimateInspector(session: session)
-            case .notes: NotesInspector(session: session)
             }
         }
         .frame(maxHeight: .infinity, alignment: .top)

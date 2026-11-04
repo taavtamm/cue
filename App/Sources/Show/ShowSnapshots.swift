@@ -45,12 +45,16 @@ enum ShowSnapshots {
         guard let request, let view = window.contentView else { return }
         try? FileManager.default.createDirectory(at: request.folder, withIntermediateDirectories: true)
         try? await Task.sleep(for: .seconds(1.5))
-        if let image = await composite(view, chrome: chrome, renderers: []) {
+        if let image = await composite(view, chrome: chrome, renderers: [], drawsUnderTitleBar: true) {
             save(image, to: request.folder.appending(path: name))
         }
     }
 
-    static func composite(_ view: NSView, chrome: AnyView?, renderers: [SlideRenderer]) async -> NSImage? {
+    /// `drawsUnderTitleBar`: glass windows (`useCueGlass`) lay their content
+    /// out under the title bar, so the chrome isn't pushed down by it.
+    static func composite(
+        _ view: NSView, chrome: AnyView?, renderers: [SlideRenderer], drawsUnderTitleBar: Bool = false
+    ) async -> NSImage? {
         var layers: [(rect: CGRect, image: NSImage)] = []
         for renderer in renderers where renderer.window != nil {
             let image: NSImage
@@ -65,7 +69,7 @@ enum ShowSnapshots {
         }
         let base = chrome.flatMap { chrome in
             let content = chrome
-                .padding(.top, view.safeAreaInsets.top) // The window's title bar, which ImageRenderer doesn't have.
+                .padding(.top, drawsUnderTitleBar ? 0 : view.safeAreaInsets.top) // A title bar ImageRenderer lacks.
                 .environment(\.isSnapshotRendering, true)
                 .frame(width: view.bounds.width, height: view.bounds.height)
             let renderer = ImageRenderer(content: content)

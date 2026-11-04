@@ -12,20 +12,14 @@ public final class ThumbnailStore {
     public private(set) var images: [Int: NSImage] = [:]
 
     @ObservationIgnored let renderer = SlideRenderer(surface: .thumbnail)
-    @ObservationIgnored private let window: NSWindow
+    @ObservationIgnored private let window: OffscreenRenderWindow
     @ObservationIgnored private var pending: [Int] = []
     @ObservationIgnored private var drawing: Task<Void, Never>?
     @ObservationIgnored private var slideCount = 0
 
     public init(canvas: CanvasSize, width: CGFloat = 384) {
         let size = CGSize(width: width, height: (width * canvas.height / max(1, canvas.width)).rounded())
-        window = NSWindow(
-            contentRect: CGRect(origin: CGPoint(x: -20_000, y: -20_000), size: size),
-            styleMask: [.borderless], backing: .buffered, defer: false
-        )
-        window.isExcludedFromWindowsMenu = true
-        window.ignoresMouseEvents = true
-        window.collectionBehavior = [.transient, .ignoresCycle, .stationary]
+        window = OffscreenRenderWindow(size: size)
         window.contentView = renderer
         window.orderFrontRegardless() // WebKit only renders pages in windows on screen.
     }
@@ -56,6 +50,8 @@ public final class ThumbnailStore {
     public func close() {
         drawing?.cancel()
         window.orderOut(nil)
+        window.contentView = nil
+        window.close()
     }
 
     private func redraw(_ slides: [Int]) {
