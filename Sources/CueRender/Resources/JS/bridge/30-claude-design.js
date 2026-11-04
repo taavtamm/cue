@@ -20,6 +20,7 @@ cue.createClaudeDesignPlayer = (config) => {
 
   const embeds = cue.createEmbeds(motion, frameFor);
   const runsEmbeds = config.surface !== 'thumbnail' && config.surface !== 'export';
+  if (runsEmbeds) embeds.hidePictures();
   const animates = ['stage', 'mirror', 'presenterCurrent', 'editor'].includes(config.surface);
 
   let current = null; // { slide, build }
@@ -130,10 +131,10 @@ cue.createClaudeDesignPlayer = (config) => {
     clearTimeout(autoStepTimer);
 
     if (!previous || previous.slide !== slide) {
-      embeds.stop();
+      const kind = finished ? null : transitionKind(previous, slide);
+      embeds.stop(kind ? motion.transMs[kind] || 0 : 0);
       showOnly(slide);
       applyBuildState(slide, build);
-      const kind = finished ? null : transitionKind(previous, slide);
       if (kind) playTransition(kind, previous.slide, slide);
       if (runsEmbeds) embeds.start(slide);
     } else {

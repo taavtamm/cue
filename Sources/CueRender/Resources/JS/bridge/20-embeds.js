@@ -25,6 +25,22 @@ cue.createEmbeds = (motion, frameFor) => {
     embed.host.appendChild(label);
   }
 
+  let leaving = []; // iframes kept until the outgoing slide's transition ends
+
+  /** The deck's still pictures say "not captured for export". On live
+   *  surfaces they must never show, not even mid-transition. */
+  function hidePictures() {
+    for (const [slideIndex, slide] of motion.slides.entries()) {
+      for (const spec of slide.embeds || []) {
+        const picture = frameFor(slideIndex, spec.id)?.firstElementChild;
+        if (picture) {
+          picture.setAttribute('data-embed-under', '');
+          picture.setAttribute('data-embed-pic', '');
+        }
+      }
+    }
+  }
+
   function start(slideIndex) {
     if (!motion.live) return;
     const specs = (motion.slides[slideIndex] && motion.slides[slideIndex].embeds) || [];
@@ -32,12 +48,8 @@ cue.createEmbeds = (motion, frameFor) => {
       const host = frameFor(slideIndex, spec.id);
       if (!host || host.hasAttribute('data-embed-dead')) continue;
       if (running.some((embed) => embed.host === host)) continue;
+      dropLeaving(host);
 
-      const picture = host.firstElementChild;
-      if (picture) {
-        picture.setAttribute('data-embed-under', '');
-        picture.setAttribute('data-embed-pic', '');
-      }
       const iframe = document.createElement('iframe');
       iframe.setAttribute('sandbox', 'allow-scripts');
       iframe.setAttribute('inert', '');
@@ -57,13 +69,26 @@ cue.createEmbeds = (motion, frameFor) => {
     }
   }
 
-  function stop() {
-    for (const embed of running) {
-      embed.iframe.remove();
-      const under = embed.host.querySelector('[data-embed-under]');
-      if (under) under.removeAttribute('data-embed-under');
-    }
+  /** Stops the running embeds. `afterMs` keeps them on screen while the
+   *  outgoing slide fades or pushes out, so nothing pops mid-transition. */
+  function stop(afterMs = 0) {
+    const outgoing = running;
     running = [];
+    if (afterMs <= 0) {
+      outgoing.forEach((embed) => embed.iframe.remove());
+      return;
+    }
+    leaving.push(...outgoing);
+    setTimeout(() => {
+      outgoing.forEach((embed) => embed.iframe.remove());
+      leaving = leaving.filter((embed) => !outgoing.includes(embed));
+    }, afterMs);
+  }
+
+  /** Coming straight back to a slide: drop its outgoing copy now. */
+  function dropLeaving(host) {
+    for (const embed of leaving.filter((candidate) => candidate.host === host)) embed.iframe.remove();
+    leaving = leaving.filter((embed) => embed.host !== host);
   }
 
   window.addEventListener('message', (event) => {
@@ -83,5 +108,5 @@ cue.createEmbeds = (motion, frameFor) => {
   const slidesWithEmbeds = () =>
     motion.slides.map((slide, i) => ((slide.embeds || []).length > 0 ? i : -1)).filter((i) => i >= 0);
 
-  return { start, stop, slidesWithEmbeds, runningCount: () => running.length };
+  return { start, stop, hidePictures, slidesWithEmbeds, runningCount: () => running.length };
 };
