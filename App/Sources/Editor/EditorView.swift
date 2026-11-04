@@ -28,6 +28,13 @@ struct EditorView: View {
                 }
             }
             .padding(EdgeInsets(top: 0, leading: 8, bottom: 8, trailing: 8))
+            // A click on empty window space (around the canvas, by the Ask bar…)
+            // deselects. Not on the toolbar row, which drags the window.
+            .background {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture { session.clearSelection() }
+            }
         }
         .foregroundStyle(CueTheme.text)
         .animation(.easeOut(duration: 0.18), value: showsSidebar)
