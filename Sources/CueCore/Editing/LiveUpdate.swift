@@ -17,6 +17,9 @@ public enum DOMChange: Sendable, Equatable, Codable {
     case setAttribute(cueID: String, name: String, value: String?)
     /// The full CSS of Cue's override block. Created at the end of `<head>` if missing.
     case setOverrides(css: String)
+    /// New markup at the end of an element, exactly as the source now has it.
+    case insertHTML(parentCueID: String, html: String)
+    case remove(cueID: String)
 }
 
 /// What the editor decided while making the patch; turned into a
@@ -25,5 +28,9 @@ enum LivePlan: Sendable, Equatable {
     case innerHTML(ElementPath)
     case attribute(ElementPath, name: String)
     case overrides(created: Bool)
+    /// Markup appended inside this element (the new element is its last child).
+    case inserted(parent: ElementPath)
+    /// An element removed; named by its live id from before the edit.
+    case removed(cueID: String)
     case reload
 }

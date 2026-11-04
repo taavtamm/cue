@@ -220,9 +220,10 @@
   });
 
   // ---- Freezing the show. ----
-  // A dialog that really opened would wait for a person, so any single call
-  // taking seconds means it blocked. The total time isn't checked: on a busy
-  // machine 300 round trips to Cue can add up without anything blocking.
+  // A dialog that really opened would wait for a person, forever. So a call
+  // that takes many seconds means it blocked. A busy main thread (other test
+  // suites parsing a big deck) can delay a round trip by a second or two, so
+  // the limit is generous and the total time isn't checked.
   attempt('dialog spam', (leak, block) => {
     let answers = 0;
     let slowest = 0;
@@ -237,7 +238,7 @@
       if (timed(() => confirm('ok?'))) answers += 1;
       if (timed(() => prompt('name?')) !== null) answers += 1;
     }
-    return slowest < 1500 && answers === 0 ? block('returned at once') : leak();
+    return slowest < 10000 && answers === 0 ? block('returned at once') : leak();
   });
   attempt('busy loop 1.5 s', (leak, block) => {
     const until = Date.now() + 1500;

@@ -19,8 +19,18 @@ cue.domEdits = (() => {
       overridesBlock().textContent = change.css;
       return true;
     }
+    if (change.type === 'insertHTML') {
+      const parent = cue.sourceMap.element(change.parentCueID);
+      if (!parent || !parent.isConnected) return false;
+      parent.insertAdjacentHTML('beforeend', change.html);
+      return true;
+    }
     const element = cue.sourceMap.element(change.cueID);
-    if (!element) return false;
+    if (!element || !element.isConnected) return false;
+    if (change.type === 'remove') {
+      element.remove();
+      return true;
+    }
     if (change.type === 'setInnerHTML') {
       element.innerHTML = change.html;
     } else if (change.type === 'setAttribute') {

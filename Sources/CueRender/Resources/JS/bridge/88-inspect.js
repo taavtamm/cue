@@ -5,6 +5,8 @@
 cue.inspect = (() => {
   const STYLE_PROPERTIES = [
     'font-family', 'font-weight', 'font-size', 'line-height', 'letter-spacing', 'color', 'text-align',
+    'background-color', 'border-color', 'border-width', 'border-radius', 'opacity', 'box-shadow',
+    'position', 'z-index',
   ];
 
   const plainRect = (r) => ({ x: r.x, y: r.y, width: r.width, height: r.height });
@@ -43,7 +45,8 @@ cue.inspect = (() => {
       canvas: { x: (r.x - canvas.x) / scale, y: (r.y - canvas.y) / scale, width: r.width / scale, height: r.height / scale },
       style,
       build: buildStepOf(el, slide, buildSteps || []),
-      isLeaf: el.children.length === 0,
+      // Text that can be edited in place: plain, or with inline formatting only.
+      isLeaf: el.children.length === 0 || (cue.inlineText ? cue.inlineText.isTextBox(el) : false),
       hostsEmbed: !!el.querySelector('iframe[srcdoc]'),
     };
   }

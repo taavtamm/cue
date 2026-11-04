@@ -19,6 +19,16 @@ public struct InspectorValues: Sendable, Equatable {
     /// The variable the colour comes from, e.g. "var(--ink)".
     public var colorVariable: String?
     public var x = "", y = "", width = "", height = ""
+    /// Raw CSS weight, "600", for the weight picker.
+    public var fontWeightValue = "400"
+    /// "left", "center", "right", "justify" (or "start"/"end").
+    public var textAlign = ""
+    /// Boxes and shapes: "#2F7BFF" or "None" when transparent.
+    public var fill = ""
+    public var borderColor = "", borderWidth = "", cornerRadius = ""
+    /// Percent, "100".
+    public var opacity = ""
+    public var hasShadow = false
     /// "from deck stylesheet · .headline", "inline style", …
     public var source = ""
 
@@ -39,6 +49,15 @@ public struct InspectorValues: Sendable, Equatable {
         (x, y) = (Self.number(box.minX.rounded()), Self.number(box.minY.rounded()))
         (width, height) = (Self.number(box.width.rounded()), Self.number(box.height.rounded()))
         source = (fontSource ?? colorSource)?.summary ?? ""
+        fontWeightValue = style["font-weight"] ?? "400"
+        textAlign = style["text-align"] ?? ""
+        let background = style["background-color"] ?? ""
+        fill = background.isEmpty || background.hasSuffix(", 0)") || background == "transparent" ? "None" : Self.hex(background)
+        borderColor = Self.hex(style["border-color"] ?? "")
+        borderWidth = Self.pixels(style["border-width"]).map(Self.number) ?? "0"
+        cornerRadius = Self.pixels(style["border-radius"]).map(Self.number) ?? (style["border-radius"] ?? "0")
+        opacity = Self.number(((Double(style["opacity"] ?? "1") ?? 1) * 100).rounded())
+        hasShadow = (style["box-shadow"] ?? "none") != "none"
     }
 
     // MARK: Formatting

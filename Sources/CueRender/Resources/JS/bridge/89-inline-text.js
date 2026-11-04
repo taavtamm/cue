@@ -34,12 +34,16 @@ cue.inlineText = (() => {
     selection.addRange(range);
   }
 
+  // Text boxes may hold simple formatting; anything else inside means it's a layout box.
+  const INLINE = new Set(['b', 'strong', 'i', 'em', 'u', 's', 'sub', 'sup', 'span', 'font', 'br', 'a']);
+  const isTextBox = (element) => Array.from(element.querySelectorAll('*')).every((child) => INLINE.has(child.localName));
+
   function begin(id) {
     const element = cue.sourceMap.element(id);
-    if (!element || element.children.length > 0) return false;
+    if (!element || !isTextBox(element)) return false;
     if (editing) finish(true);
     editing = { id, element, original: element.innerHTML, style: element.getAttribute('style') };
-    element.setAttribute('contenteditable', 'plaintext-only');
+    element.setAttribute('contenteditable', 'true'); // Rich, so the format bar can bold, italicise and link.
     element.style.setProperty('caret-color', 'transparent');
     element.style.setProperty('outline', 'none');
     element.addEventListener('blur', onBlur);
@@ -58,7 +62,9 @@ cue.inlineText = (() => {
     if (style === null) element.removeAttribute('style');
     else element.setAttribute('style', style); // Exactly as the source wrote it.
     if (commit) {
-      cue.post('textEditing', { kind: 'commit', cueID: id, text: element.textContent });
+      // Markup only when it changed: unchanged text then costs no edit at all.
+      const html = element.innerHTML !== original ? element.innerHTML : null;
+      cue.post('textEditing', { kind: 'commit', cueID: id, text: element.textContent, html });
     } else {
       element.innerHTML = original;
       cue.post('textEditing', { kind: 'cancel', cueID: id });
@@ -83,5 +89,13 @@ cue.inlineText = (() => {
   document.addEventListener('selectionchange', () => { if (editing) report('caret'); });
   document.addEventListener('input', () => { if (editing) report('input'); }, true);
 
-  return { begin, finish, isEditing: () => editing !== null };
+  /** Bold, italic, underline, links and line breaks in the text being edited. */
+  function format(command, value) {
+    if (!editing) return false;
+    const done = document.execCommand(command, false, value || null);
+    report('input');
+    return done;
+  }
+
+  return { begin, finish, format, isTextBox, isEditing: () => editing !== null };
 })();

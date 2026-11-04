@@ -51,20 +51,38 @@ cue.sourceMap = (() => {
 
   const element = (id) => byID.get(String(id)) || null;
 
-  /** The mapped element under a point in CSS pixels of the viewport. */
+  /** Inline pieces of text (font, span, b, a…) can't be moved or sized on
+   *  their own: a click on them means the text box they sit in. */
+  const isInline = (el) => {
+    const display = getComputedStyle(el).display;
+    return display === 'inline' || display === 'contents';
+  };
+
+  /** The mapped element under a point in CSS pixels of the viewport: the
+   *  nearest box that isn't inline, so clicking text selects its text box. */
   function at(x, y) {
-    let target = document.elementFromPoint(x, y);
-    while (target && !target.hasAttribute('data-cue-id')) target = target.parentElement;
+    let target = mappedAncestor(document.elementFromPoint(x, y));
+    while (target && isInline(target)) {
+      const box = mappedAncestor(target.parentElement);
+      if (!box || box === document.body || box === document.documentElement) break;
+      target = box;
+    }
     if (!target) return null;
     const rect = target.getBoundingClientRect();
     return { cueID: target.getAttribute('data-cue-id'), tag: target.localName,
       rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height } };
   }
 
-  /** The id of an element Cue already holds (e.g. from a selection). */
-  const idOf = (node) => {
+  /** The nearest element (itself included) that maps to the source. */
+  function mappedAncestor(node) {
     let target = node;
     while (target && !(target.hasAttribute && target.hasAttribute('data-cue-id'))) target = target.parentElement;
+    return target || null;
+  }
+
+  /** The id of an element Cue already holds (e.g. from a selection). */
+  const idOf = (node) => {
+    const target = mappedAncestor(node);
     return target ? target.getAttribute('data-cue-id') : null;
   };
 

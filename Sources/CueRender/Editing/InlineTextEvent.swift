@@ -10,8 +10,9 @@ public enum InlineTextEvent: Sendable, Equatable, Codable {
     case caret(CGRect, collapsed: Bool)
     /// The user typed; the caret stays solid for a moment.
     case input(CGRect, collapsed: Bool)
-    /// Return or click-away: the element's new plain text.
-    case commit(cueID: String, text: String)
+    /// Return or click-away: the element's new plain text, and for a text
+    /// box with formatting, its new markup (sanitised before it's written).
+    case commit(cueID: String, text: String, html: String?)
     /// Escape: the page put the original content back.
     case cancel(cueID: String)
 
@@ -28,7 +29,7 @@ public enum InlineTextEvent: Sendable, Equatable, Codable {
             self = typed ? .input(frame, collapsed: collapsed) : .caret(frame, collapsed: collapsed)
         case "commit":
             guard let id = message["cueID"] as? String else { return nil }
-            self = .commit(cueID: id, text: message["text"] as? String ?? "")
+            self = .commit(cueID: id, text: message["text"] as? String ?? "", html: message["html"] as? String)
         case "cancel":
             self = .cancel(cueID: message["cueID"] as? String ?? "")
         default:

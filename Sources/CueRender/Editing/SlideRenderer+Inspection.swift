@@ -72,6 +72,13 @@ extension SlideRenderer {
     }
 
     /// Ends inline editing: commit sends the text, cancel restores the original.
+    /// Formats the text being edited: "bold", "italic", "underline",
+    /// "createLink" (with a URL), "insertLineBreak", "removeFormat".
+    public func formatText(_ command: String, value: String? = nil) async throws {
+        _ = try await callInBridge("window.__cue.inlineText.format(command, value)",
+                                   arguments: ["command": command, "value": value ?? NSNull()])
+    }
+
     public func endTextEditing(commit: Bool) async throws {
         _ = try await callInBridge("window.__cue.inlineText.finish(commit)", arguments: ["commit": commit])
     }

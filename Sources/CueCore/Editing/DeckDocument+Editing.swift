@@ -64,6 +64,16 @@ extension DeckDocument {
                 let change = DOMChange.setAttribute(cueID: element.cueID, name: name, value: element.attributes[name])
                 live = .inPlace([change], remap: remap)
             }
+        case .inserted(let parentPath):
+            if let parent = sourceMap.element(at: parentPath), let inner = parent.innerRange,
+               let child = sourceMap.elements.last(where: { $0.path.dropLast() == parentPath[...] }),
+               let childRange = child.range {
+                // Everything from the new element on, so the live DOM matches the source order.
+                let html = text.slice(SourceRange(start: childRange.start, end: inner.end))
+                live = .inPlace([.insertHTML(parentCueID: parent.cueID, html: html)], remap: true)
+            }
+        case .removed(let cueID):
+            live = .inPlace([.remove(cueID: cueID)], remap: true)
         case .overrides:
             let block = sourceMap.elements.first {
                 $0.tag == "style" && $0.attributes["id"] == SourceEditor.overridesID

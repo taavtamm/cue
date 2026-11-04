@@ -22,6 +22,11 @@ private struct CanvasHost: NSViewRepresentable {
     }
 
     func updateNSView(_ view: CanvasContainerView, context: Context) {
+        if view.appliedZoom != session.zoom.scale { view.zoom(to: session.zoom.scale) } // The zoom menu.
+        if view.shownSlide != session.slide {
+            view.shownSlide = session.slide
+            view.recentre() // Same zoom on the new slide, looking at its middle.
+        }
         view.update(
             selection: session.selection?.frame, label: session.selectionLabel,
             inlineEdit: session.inlineEdit, interactiveEmbed: session.interactiveEmbed

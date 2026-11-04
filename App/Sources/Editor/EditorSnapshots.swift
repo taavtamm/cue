@@ -27,6 +27,7 @@ enum EditorSnapshots {
                 await save(window, session: session, chrome: chrome(),
                            to: request.folder.appending(path: "editor-slide\(slide + 1).png"))
             }
+            await captureHandEditing(window: window, session: session, chrome: chrome, folder: request.folder)
             for mode in [EditorMode.html, .outline] {
                 session.mode = mode
                 try? await Task.sleep(for: .seconds(1))
@@ -35,6 +36,28 @@ enum EditorSnapshots {
             }
             session.mode = .design
         }
+    }
+
+    /// A drag in progress with snapping guides, then text being edited with the format bar.
+    private static func captureHandEditing(window: NSWindow, session: EditorSession, chrome: @escaping () -> AnyView,
+                                           folder: URL) async {
+        await selectHeading(in: session)
+        try? await Task.sleep(for: .seconds(1))
+        guard let overlay = container(in: window.contentView ?? NSView())?.overlay,
+              var drag = await session.beginDrag(.move) else { return }
+        // Toward the slide's centre line, close enough to snap to it.
+        let target = session.structure.canvas.width / 2 - drag.start.midX + 4
+        drag.update(delta: CGSize(width: target, height: 40), shift: false, noSnapping: false)
+        session.preview(drag)
+        overlay.drag = drag
+        try? await Task.sleep(for: .milliseconds(600))
+        await save(window, session: session, chrome: chrome(), to: folder.appending(path: "editor-drag.png"))
+        overlay.drag = nil
+        await session.cancel(drag)
+        await session.beginInlineEdit()
+        try? await Task.sleep(for: .seconds(1))
+        await save(window, session: session, chrome: chrome(), to: folder.appending(path: "editor-format.png"))
+        await session.endInlineEdit(commit: false)
     }
 
     /// Selects the slide's first heading, so the snapshot shows the selection box and inspector.

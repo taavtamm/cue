@@ -78,6 +78,10 @@ extension SlideRenderer {
             ["type": "setAttribute", "cueID": cueID, "name": name, "value": value ?? NSNull()]
         case .setOverrides(let css):
             ["type": "setOverrides", "css": css]
+        case .insertHTML(let parentCueID, let html):
+            ["type": "insertHTML", "parentCueID": parentCueID, "html": html]
+        case .remove(let cueID):
+            ["type": "remove", "cueID": cueID]
         }
     }
 }

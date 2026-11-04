@@ -1,19 +1,29 @@
 import AppKit
+import CueCore
 import CueEditor
 import CueUI
 
-/// Draws the selection box (blue #2f7bff, corner handles, a label chip) and
-/// turns clicks into selection. Never draws into the page itself.
+/// Draws the selection box (blue #2f7bff, handles, a label chip), snapping
+/// guides while dragging, and turns clicks, drags and keys into selection,
+/// moves and resizes (see `SelectionOverlayView+Input`). Never draws into
+/// the page itself.
 final class SelectionOverlayView: NSView {
-    private let session: EditorSession
-    private var selection: CGRect?
+    let session: EditorSession
+    weak var container: CanvasContainerView?
+    private(set) var selection: CGRect?
     private var label: String?
-    private var isEditing = false
+    private(set) var isEditing = false
     private var embed: CGRect?
+    /// The move or resize in progress, drawn instead of the selection.
+    var drag: ElementDrag? { didSet { needsDisplay = true } }
+    /// Where a drag ended, shown until the page reports the element's new box.
+    var settledFrame: CGRect?
+    var gesture = PointerGesture()
 
     init(session: EditorSession) {
         self.session = session
         super.init(frame: .zero)
+        registerForDraggedTypes([.fileURL, .png, .tiff])
     }
 
     @available(*, unavailable)
@@ -22,39 +32,38 @@ final class SelectionOverlayView: NSView {
     override var acceptsFirstResponder: Bool { true }
 
     func show(selection: CGRect?, label: String?, editing: Bool, embed: CGRect?) {
+        if selection != self.selection { settledFrame = nil } // The page has the element's new box.
         let changed = selection != self.selection || label != self.label || editing != isEditing || embed != self.embed
         guard changed else { return }
         (self.selection, self.label, isEditing, self.embed) = (selection, label, editing, embed)
         needsDisplay = true
     }
 
-    // MARK: Input
+    /// The box to draw and drag: the live drag, else where one just ended, else the selection.
+    var currentBox: CGRect? { drag?.viewFrame ?? settledFrame ?? selection }
 
-    override func mouseDown(with event: NSEvent) {
-        window?.makeFirstResponder(self)
-        let point = convert(event.locationInWindow, from: nil)
-        Task { @MainActor [session] in
-            if event.clickCount >= 2 && !event.modifierFlags.contains(.command) {
-                await session.doubleClick(at: point)
-            } else {
-                await session.click(at: point)
-            }
+    /// Which handle (if any) is under `point`, for a box `rect`.
+    func handle(at point: CGPoint, in rect: CGRect) -> ElementPlacement.Handle? {
+        for (corner, handle) in handles(of: rect) where CGRect(x: corner.x - 7, y: corner.y - 7, width: 14, height: 14).contains(point) {
+            return handle
         }
+        return nil
     }
 
-    override func keyDown(with event: NSEvent) {
-        switch event.keyCode {
-        case 53: session.clearSelection() // Esc
-        case 36 where session.selection?.inspection?.isLeaf == true: Task { await session.beginInlineEdit() } // Return
-        default: super.keyDown(with: event)
-        }
+    /// The eight handles, as view points and which edges they drag (canvas +y is down).
+    private func handles(of rect: CGRect) -> [(CGPoint, ElementPlacement.Handle)] {
+        [(CGPoint(x: rect.minX, y: rect.maxY), [.left, .top]), (CGPoint(x: rect.maxX, y: rect.maxY), [.right, .top]),
+         (CGPoint(x: rect.minX, y: rect.minY), [.left, .bottom]), (CGPoint(x: rect.maxX, y: rect.minY), [.right, .bottom]),
+         (CGPoint(x: rect.midX, y: rect.maxY), .top), (CGPoint(x: rect.midX, y: rect.minY), .bottom),
+         (CGPoint(x: rect.minX, y: rect.midY), .left), (CGPoint(x: rect.maxX, y: rect.midY), .right)]
     }
 
     // MARK: Drawing
 
     override func draw(_ dirtyRect: NSRect) {
         if let embed { drawEmbedFrame(embed) }
-        guard let selection, selection.width > 0 else { return }
+        if let drag { drawGuides(drag) }
+        guard let selection = currentBox, selection.width > 0 else { return }
         let blue = NSColor(CueTheme.selection)
         blue.withAlphaComponent(isEditing ? 0 : 0.06).setFill()
         selection.fill()
@@ -63,13 +72,29 @@ final class SelectionOverlayView: NSView {
         blue.setStroke()
         border.stroke()
         guard !isEditing else { return }
-        for corner in corners(of: selection) { drawHandle(at: corner, color: blue) }
-        if let label { drawLabel(label, above: selection, color: blue) }
+        for (point, _) in handles(of: selection) { drawHandle(at: point, color: blue) }
+        if let label, drag == nil { drawLabel(label, above: selection, color: blue) }
     }
 
-    private func corners(of rect: CGRect) -> [CGPoint] {
-        [CGPoint(x: rect.minX, y: rect.minY), CGPoint(x: rect.maxX, y: rect.minY),
-         CGPoint(x: rect.minX, y: rect.maxY), CGPoint(x: rect.maxX, y: rect.maxY)]
+    /// Thin magenta lines across the slide where the box snapped.
+    private func drawGuides(_ drag: ElementDrag) {
+        let slide = drag.geometry.frame
+        NSColor(red: 1, green: 0.37, blue: 0.64, alpha: 0.95).setStroke()
+        for guide in drag.guides {
+            let path = NSBezierPath()
+            path.lineWidth = 1
+            switch guide.axis {
+            case .vertical:
+                let x = (slide.minX + guide.position * drag.geometry.scale).rounded() + 0.5
+                path.move(to: CGPoint(x: x, y: slide.minY))
+                path.line(to: CGPoint(x: x, y: slide.maxY))
+            case .horizontal:
+                let y = (slide.maxY - guide.position * drag.geometry.scale).rounded() + 0.5
+                path.move(to: CGPoint(x: slide.minX, y: y))
+                path.line(to: CGPoint(x: slide.maxX, y: y))
+            }
+            path.stroke()
+        }
     }
 
     private func drawHandle(at point: CGPoint, color: NSColor) {

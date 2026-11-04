@@ -15,6 +15,7 @@ struct DesignInspector: View {
                     header(selection)
                     typography(selection.values)
                     layout(selection.values)
+                    AppearanceInspector(session: session, values: selection.values)
                 } else {
                     Text("Select something on the slide to see and change how it looks.")
                         .font(.system(size: 12))
@@ -49,22 +50,15 @@ struct DesignInspector: View {
     private func typography(_ values: InspectorValues) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionLabel("Typography")
-            HStack {
-                Text(values.fontFamily.isEmpty ? "—" : values.fontFamily)
-                Spacer()
-                Text(values.fontWeight).foregroundStyle(CueTheme.textTertiary)
-            }
-            .padding(.horizontal, 10)
-            .frame(height: 32)
-            .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 9))
+            FontPicker(session: session, values: values)
             HStack(spacing: 6) {
                 field("Size", values.fontSize, .fontSize)
                 field("Line", values.lineHeight, .lineHeight)
                 field("Track", values.tracking, .tracking)
             }
+            AlignmentPicker(session: session, current: values.textAlign)
             HStack(spacing: 6) {
-                RoundedRectangle(cornerRadius: 6).fill(Self.swatch(values.color)).frame(width: 22, height: 22)
-                    .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color.white.opacity(0.2)))
+                ColourWell(hex: values.color) { hex in Task { await session.setStyle(.color, to: hex) } }
                 let hex = values.color.components(separatedBy: " · ").first ?? ""
                 InspectorField("Colour", value: hex, placement: .leading) { input in
                     Task { await session.setStyle(.color, to: input) }
@@ -83,15 +77,15 @@ struct DesignInspector: View {
             SectionLabel("Layout")
             Grid(horizontalSpacing: 6, verticalSpacing: 6) {
                 GridRow {
-                    InspectorField("X", value: values.x, placement: .leading, isEditable: false)
-                    InspectorField("Y", value: values.y, placement: .leading, isEditable: false)
+                    position("X", values.x) { frame, value in frame.origin.x = value }
+                    position("Y", values.y) { frame, value in frame.origin.y = value }
                 }
                 GridRow {
                     field("W", values.width, .width, placement: .leading)
                     field("H", values.height, .height, placement: .leading)
                 }
             }
-            Text("Position comes from the deck's layout; width and height set inline sizes.")
+            Text("Drag on the slide to move; handles resize. Shift constrains, ⌘ turns snapping off, ⌥ duplicates.")
                 .font(.system(size: 10.5)).foregroundStyle(CueTheme.textTertiary)
         }
     }
@@ -110,17 +104,19 @@ struct DesignInspector: View {
         }
     }
 
+    /// X or Y in canvas pixels: moves the element (an inline offset for the deck's own elements).
+    private func position(_ label: String, _ value: String, set: @escaping (inout CGRect, CGFloat) -> Void) -> some View {
+        InspectorField(label, value: value, placement: .leading) { input in
+            guard let number = Double(input.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "px", with: ""))
+            else { return }
+            Task { await session.setFrame { set(&$0, CGFloat(number)) } }
+        }
+    }
+
     private func field(_ label: String, _ value: String, _ kind: StyleInput.Field,
                        placement: InspectorField.LabelPlacement = .above) -> some View {
         InspectorField(label, value: value, placement: placement) { input in
             Task { await session.setStyle(kind, to: input) }
         }
-    }
-
-    /// The swatch colour for "#RRGGBB" (alpha shown in text, not here).
-    private static func swatch(_ text: String) -> Color {
-        let hex = text.dropFirst().prefix(6)
-        guard text.hasPrefix("#"), hex.count == 6, let value = UInt32(hex, radix: 16) else { return .clear }
-        return Color(hex: value)
     }
 }

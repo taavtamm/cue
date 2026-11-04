@@ -25,6 +25,8 @@ public final class EditorSession {
     public let askQueue: AskRequestQueue
     /// The real slide, as an editor surface.
     public let canvas = SlideRenderer(surface: .editor)
+    /// How far the canvas is zoomed in (per window, not saved).
+    public let zoom = CanvasZoom()
 
     /// Called after every successful edit, undo or redo (thumbnails, window title).
     @ObservationIgnored public var onDocumentChanged: ((EditResult) -> Void)?

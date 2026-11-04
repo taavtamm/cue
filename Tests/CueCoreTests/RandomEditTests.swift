@@ -66,6 +66,16 @@ struct RandomEditTests {
         case .setText(let path, _): return map.element(at: path)?.innerRange
         case .setAttribute(let path, _, _), .setStyle(let path, _, _): return map.element(at: path)?.startTag
         case .setNotes(let slide, _): return map.element(at: document.structure.slides[slide].elementPath)?.startTag
+        case .setStyles(let path, _): return map.element(at: path)?.startTag
+        case .setInnerHTML(let path, _): return map.element(at: path)?.innerRange
+        case .deleteElement(let path):
+            guard let range = map.element(at: path)?.range else { return nil }
+            return SourceRange(start: SourceText(document.source).whitespaceStart(before: range.start), end: range.end)
+        case .insertElement(let slide, _):
+            let editor = SourceEditor(source: document.source, root: document.tree, map: map,
+                                      structure: document.structure, encoding: document.encoding)
+            guard let end = (try? editor.canvasContainer(ofSlide: slide))?.endTag else { return nil }
+            return SourceRange(start: SourceText(document.source).whitespaceStart(before: end.start), end: end.start)
         default: return nil
         }
     }
@@ -98,7 +108,8 @@ struct RandomEditTests {
         if case .setNotes(let slide, let text) = testCase.operation, document.structure.slides[slide].notes != text {
             problems.append("\(name): notes not re-read")
         }
-        if result.live == .reload { problems.append("\(name): a local edit asked for a reload") }
+        // A reload is right only when the edit changed how the deck plays (e.g. removed a live embed).
+        if result.live == .reload && !result.structureChanged { problems.append("\(name): a local edit asked for a reload") }
 
         try document.undo()
         if document.source != original.source { problems.append("\(name): undo didn't restore the text") }

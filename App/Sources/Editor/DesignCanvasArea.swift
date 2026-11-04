@@ -52,6 +52,7 @@ struct BreadcrumbBar: View {
                     .font(.system(size: 11))
                     .foregroundStyle(CueTheme.textTertiary)
             }
+            ZoomMenu(zoom: session.zoom)
             LivePlayToggle(isPlaying: session.isPlayingLive) { session.setPlayingLive(!session.isPlayingLive) }
         }
         .padding(.horizontal, 24)

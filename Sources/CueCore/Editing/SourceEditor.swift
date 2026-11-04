@@ -41,6 +41,14 @@ struct SourceEditor {
             return (try setBuilds(slide: slide, steps: steps), .reload)
         case .setOverride(let selector, let property, let value):
             return try setOverride(selector: selector, property: property, value: value)
+        case .setStyles(let path, let changes):
+            return (try setStyles(on: element(path), changes), .attribute(path, name: "style"))
+        case .insertElement(let slide, let html):
+            return try insertElement(onSlide: slide, html: html)
+        case .deleteElement(let path):
+            return try deleteElement(element(path))
+        case .setInnerHTML(let path, let html):
+            return (try setInnerHTML(of: element(path), to: html), .innerHTML(path))
         }
     }
 

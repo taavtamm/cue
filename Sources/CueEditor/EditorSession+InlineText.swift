@@ -27,12 +27,12 @@ extension EditorSession {
             inlineEdit?.caret = canvas.viewRect(fromCSS: rect)
             inlineEdit?.collapsed = collapsed
             inlineEdit?.inputCount += 1
-        case .commit(let cueID, let text):
+        case .commit(let cueID, let text, let html):
             let path = inlineEdit?.path ?? document.element(cueID: cueID)?.path
             inlineEdit = nil
             guard let path, let element = document.sourceMap.element(at: path) else { return resumeCommitWaiters() }
             Task {
-                await commitText(text, to: element)
+                if let html { await commitMarkup(html, to: element) } else { await commitText(text, to: element) }
                 resumeCommitWaiters()
             }
         case .cancel:
@@ -63,6 +63,16 @@ extension EditorSession {
         let waiters = inlineCommitWaiters
         inlineCommitWaiters = []
         waiters.forEach { $0.resume() }
+    }
+
+    /// A text box with formatting: its sanitised markup replaces its content.
+    private func commitMarkup(_ html: String, to element: MappedElement) async {
+        let current = element.innerRange.map { (document.source as NSString).substring(with: NSRange(
+            location: $0.start, length: $0.length)) }
+        if current == RichTextSanitizer.sanitize(html) { return } // Unchanged: no edit, no undo step.
+        if await !apply(.setInnerHTML(element.path, html)) {
+            try? await loadCanvas()
+        }
     }
 
     private func commitText(_ text: String, to element: MappedElement) async {

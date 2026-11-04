@@ -48,10 +48,13 @@ struct LiveEditingTests {
         let (harness, document) = try await open()
         defer { harness.close() }
         try await harness.show(ShowPosition(slide: 0), finished: true)
-        // Leaf elements on the showing slide that are hit-testable at their centre.
+        // Boxes on the showing slide that are hit-testable at their centre.
+        // Inline pieces (font, span…) resolve to their text box instead; the
+        // editor's InlineTextSelectionTests cover that.
         let targets: [[String: Any]] = try await harness.evaluate("""
             const slide = document.querySelectorAll('section.deck-slide')[0];
             return Array.from(slide.querySelectorAll('[data-cue-id]')).filter((el) => {
+              if (['inline', 'contents'].includes(getComputedStyle(el).display)) return false;
               const r = el.getBoundingClientRect();
               if (r.width < 4 || r.height < 4) return false;
               return document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2) === el;

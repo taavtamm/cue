@@ -21,6 +21,8 @@ public struct EditHistory: Sendable {
     public var canUndo: Bool { !undoStack.isEmpty }
     public var canRedo: Bool { !redoStack.isEmpty }
     public var undoCount: Int { undoStack.count }
+    /// The patches of the edit Undo would reverse, for tests and diagnostics.
+    public var lastForward: SourceEdit? { undoStack.last?.forward }
 
     mutating func record(_ record: Record) {
         redoStack.removeAll()

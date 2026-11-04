@@ -50,6 +50,7 @@ struct EditorToolbar: View {
 
     private var playCluster: some View {
         HStack(spacing: 10) {
+            InsertMenu(session: session)
             IconButton("Add slide", systemImage: "plus.rectangle", size: 40, iconSize: 17, action: actions.addSlide)
             PlayButton { actions.play(session.slide) }
                 .help("Play from this slide (⌥⌘P)")

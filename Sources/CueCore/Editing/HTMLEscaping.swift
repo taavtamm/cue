@@ -31,6 +31,12 @@ struct HTMLEscaping {
         }
     }
 
+    /// Markup Cue produced or sanitised: only characters the encoding can't
+    /// store change, to numeric references. Tags and entities stay as they are.
+    func markup(_ value: String) -> String {
+        escape(value) { _ in nil }
+    }
+
     /// Code contexts (CSS, JSON) have no HTML escapes: refuse what won't encode.
     func verbatim(_ value: String) throws -> String {
         for character in value where !fits(character) { throw EditError.unencodable(character) }

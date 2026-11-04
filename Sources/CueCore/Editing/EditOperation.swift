@@ -23,6 +23,17 @@ public enum EditOperation: Sendable, Equatable, Codable {
     /// A rule in Cue's own `<style id="cue-overrides">` block. The deck's
     /// stylesheet is never rewritten.
     case setOverride(selector: String, property: String, value: String?)
+    /// Several inline style properties at once (a move or resize), as one
+    /// undo step. Properties not listed keep their exact text.
+    case setStyles(ElementPath, [StyleChange])
+    /// New markup (a text box, image or shape) at the end of a slide's
+    /// design canvas, the element that holds the slide's own boxes.
+    case insertElement(slide: Int, html: String)
+    /// Removes an element and the whitespace before it.
+    case deleteElement(ElementPath)
+    /// Replaces an element's content with formatted text (bold, italic,
+    /// links, line breaks). The markup is sanitised first: see `RichTextSanitizer`.
+    case setInnerHTML(ElementPath, String)
 
     /// Edits with the same key, made in quick succession, undo as one.
     var coalescingKey: String? {
@@ -32,8 +43,21 @@ public enum EditOperation: Sendable, Equatable, Codable {
         case .setStyle(let path, let property, _): "style \(path) \(property)"
         case .setNotes(let slide, _): "notes \(slide)"
         case .setOverride(let selector, let property, _): "override \(selector) \(property)"
+        case .setStyles(let path, let changes): "styles \(path) \(changes.map(\.property).sorted())"
+        case .setInnerHTML(let path, _): "text \(path)"
         default: nil
         }
+    }
+}
+
+/// One inline style property to set, or remove when `value` is nil.
+public struct StyleChange: Sendable, Equatable, Codable {
+    public var property: String
+    public var value: String?
+
+    public init(_ property: String, _ value: String?) {
+        self.property = property
+        self.value = value
     }
 }
 
