@@ -1,0 +1,12 @@
+<!doctype html>
+<!-- A deck whose script locks up the page for good, shortly after loading.
+     Cue must notice, reload the surface with deck scripts off, and keep presenting. -->
+<html><head><meta charset="utf-8"><title>Hanging deck</title></head><body>
+<section data-cue-slide id="h1"><h1>One</h1></section>
+<section data-cue-slide id="h2"><h1>Two</h1></section>
+<section data-cue-slide id="h3"><h1>Three</h1></section>
+<script>
+  document.body.setAttribute('data-deck-script-ran', '1');
+  setTimeout(function () { for (;;) { /* never returns */ } }, 600);
+</script>
+</body></html>

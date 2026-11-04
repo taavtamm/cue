@@ -2,11 +2,15 @@
 import AppKit
 import CueCore
 import CueRender
+import SwiftUI
 
-/// Debug-only: saves PNGs of the live stage, so a show can be checked
-/// without screen-recording permission.
+/// Debug-only: saves PNGs of a running show, so it can be checked without
+/// screen-recording permission. SwiftUI chrome is drawn with ImageRenderer
+/// at the window's size, then each slide renderer's own snapshot is laid
+/// over it (neither web views nor SwiftUI draw through `cacheDisplay`).
+/// ImageRenderer approximates system glass, so glass looks flatter here.
 ///
-///     Cue -open deck.html -present YES -snapshotDir /tmp/shots -snapshotSlides 1,2,4
+///     Cue -open deck.html -rehearse YES -snapshotDir /tmp/shots -snapshotSlides 1,2,6
 @MainActor
 enum ShowSnapshots {
     static var request: (folder: URL, slides: [Int])? {
@@ -16,26 +20,71 @@ enum ShowSnapshots {
         return (URL(filePath: path), slides)
     }
 
-    /// Shows each requested slide on the stage, waits for embeds to animate, and saves it.
-    static func capture(stage: SlideRenderer, controller: ShowController, render: () -> Void) async {
+    /// For each requested slide: jump there, let embeds animate, save every window.
+    static func capture(session: ShowSession, surfaces: () -> [String: ShowSurface]) async {
         guard let request else { return }
         try? FileManager.default.createDirectory(at: request.folder, withIntermediateDirectories: true)
-        try? await Task.sleep(for: .seconds(2))
+        try? await Task.sleep(for: .seconds(2.5))
         for slide in request.slides {
-            controller.jump(toSlide: slide)
-            render()
-            for frame in 0..<2 { // Two frames apart, to show whether live content moves.
-                try? await Task.sleep(for: .milliseconds(frame == 0 ? 2_500 : 700))
-                guard let image = try? await stage.snapshot(), let png = pngData(image) else { continue }
-                let file = request.folder.appending(path: "slide\(slide + 1)-\(frame == 0 ? "a" : "b").png")
-                try? png.write(to: file)
+            session.controller.jump(toSlide: slide)
+            session.render()
+            try? await Task.sleep(for: .milliseconds(2_500))
+            for (key, surface) in surfaces() {
+                guard let view = surface.window.contentView,
+                      let image = await composite(view, chrome: surface.chrome, renderers: surface.renderers)
+                else { continue }
+                let sameRole = surfaces().values.filter { $0.role == surface.role }.count > 1
+                let name = "\(surface.role.rawValue)\(sameRole ? "-" + key.prefix(8) : "")-slide\(slide + 1).png"
+                save(image, to: request.folder.appending(path: name))
             }
         }
     }
 
-    private static func pngData(_ image: NSImage) -> Data? {
-        guard let tiff = image.tiffRepresentation, let bitmap = NSBitmapImageRep(data: tiff) else { return nil }
-        return bitmap.representation(using: .png, properties: [:])
+    /// Saves a picture of an ordinary window (e.g. Displays) once it has drawn.
+    static func capture(window: NSWindow, chrome: AnyView, named name: String) async {
+        guard let request, let view = window.contentView else { return }
+        try? FileManager.default.createDirectory(at: request.folder, withIntermediateDirectories: true)
+        try? await Task.sleep(for: .seconds(1.5))
+        if let image = await composite(view, chrome: chrome, renderers: []) {
+            save(image, to: request.folder.appending(path: name))
+        }
+    }
+
+    static func composite(_ view: NSView, chrome: AnyView?, renderers: [SlideRenderer]) async -> NSImage? {
+        var layers: [(rect: CGRect, image: NSImage)] = []
+        for renderer in renderers where renderer.window != nil {
+            let image: NSImage
+            do { image = try await renderer.snapshot() } catch {
+                NSLog("Cue snapshot: %@ renderer not captured (ready: %d): %@",
+                      renderer.surface.rawValue, renderer.isReady ? 1 : 0, String(describing: error))
+                continue
+            }
+            var rect = renderer.convert(renderer.bounds, to: view)
+            if view.isFlipped { rect.origin.y = view.bounds.height - rect.maxY }
+            layers.append((rect, image))
+        }
+        let base = chrome.flatMap { chrome in
+            let content = chrome
+                .padding(.top, view.safeAreaInsets.top) // The window's title bar, which ImageRenderer doesn't have.
+                .environment(\.isSnapshotRendering, true)
+                .frame(width: view.bounds.width, height: view.bounds.height)
+            let renderer = ImageRenderer(content: content)
+            renderer.scale = 2
+            return renderer.nsImage
+        }
+        return NSImage(size: view.bounds.size, flipped: false) { bounds in
+            NSColor.black.setFill()
+            bounds.fill()
+            base?.draw(in: bounds)
+            for layer in layers { layer.image.draw(in: layer.rect) }
+            return true
+        }
+    }
+
+    private static func save(_ image: NSImage, to url: URL) {
+        guard let tiff = image.tiffRepresentation, let bitmap = NSBitmapImageRep(data: tiff),
+              let png = bitmap.representation(using: .png, properties: [:]) else { return }
+        try? png.write(to: url)
     }
 }
 #endif

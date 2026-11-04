@@ -21,6 +21,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.mainMenu = MainMenu.make()
         if let url = LaunchOptions.deckToOpen {
             open(url, presentAt: LaunchOptions.presentImmediately ? LaunchOptions.startSlide : nil)
+            if let deck = deckWindows.first {
+                if LaunchOptions.rehearseImmediately { deck.present(fromSlide: LaunchOptions.startSlide, mode: .rehearse) }
+                if LaunchOptions.showDisplays { deck.showDisplays(nil) }
+            }
         } else if deckWindows.isEmpty {
             openDocument(nil)
         }

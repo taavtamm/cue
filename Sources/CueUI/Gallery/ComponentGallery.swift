@@ -25,6 +25,13 @@ public struct ComponentGallery: View {
                     presenterSample
                 }
                 launcherField
+                Banner(
+                    systemImage: "network",
+                    message: "This deck loads fonts from fonts.googleapis.com and fonts.gstatic.com. Allow?",
+                    detail: "Cue blocks the network for every deck until you allow it. Saved with this deck.",
+                    actions: [.init("Allow", kind: .primary) {}, .init("Not now") {}, .init("Never") {}]
+                )
+                .frame(width: 900)
             }
             .padding(40)
         }

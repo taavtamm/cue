@@ -1,0 +1,81 @@
+<!doctype html>
+<!--
+  A deliberately hostile deck for Cue's sandbox tests (milestone 3).
+
+  The test copies this file into <tmp>/deck/hostile.html and replaces:
+    __SERVER__   an http://127.0.0.1:<port> server that counts every hit
+    __SECRET__   absolute path of <tmp>/secret.txt, outside the deck folder
+    __TOKEN__    the text inside secret.txt
+  Every attempt below must fail. Each writes its outcome into
+  #hostile-results as <li data-attempt data-outcome>: "blocked", "LEAKED",
+  "observed-by-test" (the server or Swift decides) or "control-ok".
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Hostile deck</title>
+<script>
+// 1. Capture what this page needs, then poison everything Cue's bridge
+//    might rely on. The bridge lives in its own world and must not notice.
+(function () {
+  const H = (window.__hostile = {
+    byId: Document.prototype.getElementById.bind(document),
+    create: Document.prototype.createElement.bind(document),
+    append: Node.prototype.appendChild,
+    setAttr: Element.prototype.setAttribute,
+    realWebkit: window.webkit,
+    poisonHits: 0,
+  });
+  const trap = (name) => function () { H.poisonHits += 1; throw new Error('poisoned ' + name); };
+  Element.prototype.querySelectorAll = trap('Element.querySelectorAll');
+  Document.prototype.querySelectorAll = trap('Document.querySelectorAll');
+  Element.prototype.querySelector = trap('Element.querySelector');
+  Document.prototype.querySelector = trap('Document.querySelector');
+  Element.prototype.getBoundingClientRect = trap('getBoundingClientRect');
+  Element.prototype.animate = trap('animate');
+  Element.prototype.removeAttribute = trap('removeAttribute');
+  Array.prototype.map = trap('Array.map');
+  Array.prototype.filter = trap('Array.filter');
+  Array.prototype.forEach = trap('Array.forEach');
+  Array.from = trap('Array.from');
+  Object.assign = trap('Object.assign');
+  Object.keys = trap('Object.keys');
+  JSON.parse = trap('JSON.parse');
+  JSON.stringify = trap('JSON.stringify');
+  window.getComputedStyle = trap('getComputedStyle');
+  window.MutationObserver = trap('MutationObserver');
+  window.requestAnimationFrame = trap('requestAnimationFrame');
+  // A fake message channel, in case the bridge looked up window.webkit here.
+  try {
+    Object.defineProperty(window, 'webkit', {
+      value: { messageHandlers: { cue: { postMessage: trap('fake webkit handler') } } },
+    });
+  } catch (e) { /* Not redefinable: fine. */ }
+})();
+</script>
+</head>
+<body>
+<section data-cue-slide id="s1"><h1>One</h1></section>
+<section data-cue-slide id="s2"><h1>Two</h1></section>
+<section data-cue-slide id="s3"><h1>Three</h1></section>
+<ol id="hostile-results"></ol>
+
+<!-- Remote loads in markup, before any script runs. -->
+<img id="markup-img" src="__SERVER__/markup-img.png" alt="">
+<link rel="stylesheet" href="__SERVER__/markup.css">
+<link rel="preconnect" href="__SERVER__">
+<link rel="prefetch" href="__SERVER__/prefetch">
+<style>
+  @import url("__SERVER__/import.css");
+  @font-face { font-family: Hostile; src: url("__SERVER__/font.woff2"); }
+  #hostile-results { font-family: Hostile; background: url("__SERVER__/bg.png"); }
+  .file-bg { background: url("file://__SECRET__"); }
+</style>
+<div class="file-bg"></div>
+<iframe src="__SERVER__/frame" title="remote frame"></iframe>
+<video src="__SERVER__/video.mp4" muted></video>
+<a id="ping-link" href="#pinged" ping="__SERVER__/ping">ping</a>
+
+<script src="hostile-attempts.js"></script>
+</body>
+</html>

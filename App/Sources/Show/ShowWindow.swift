@@ -6,9 +6,18 @@ final class ShowWindow: NSWindow {
     /// Return true when the key was a show key and is consumed.
     var onShowKey: ((String) -> Bool)?
     var onMouseMoved: (() -> Void)?
+    /// The user closed a rehearsal window: end the show.
+    var onClose: (() -> Void)?
 
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
+
+    override func close() {
+        let onClose = onClose
+        self.onClose = nil
+        super.close()
+        onClose?()
+    }
 
     override func sendEvent(_ event: NSEvent) {
         switch event.type {

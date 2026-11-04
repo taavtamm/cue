@@ -22,6 +22,8 @@ public enum CueTheme {
     public static let successBright = Color(hex: 0x5DFFB0)
     public static let destructive = Color(hex: 0xFF453A)
     public static let destructiveText = Color(hex: 0xFF8A80)
+    /// Confidence monitor accent, from the Displays design.
+    public static let violet = Color(hex: 0xB36BFF)
 
     // MARK: Glass
     /// Window glass tint, about rgba(20,20,24,0.66).

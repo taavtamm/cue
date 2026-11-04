@@ -8,6 +8,8 @@ struct DeckBar: View {
     let onPrevious: () -> Void
     let onNext: () -> Void
     let onPlay: () -> Void
+    var onRehearse: () -> Void = {}
+    var onDisplays: () -> Void = {}
 
     var body: some View {
         HStack(spacing: 16) {
@@ -17,6 +19,8 @@ struct DeckBar: View {
             }
             Spacer(minLength: 12)
             stepper
+            Button("Displays", action: onDisplays).buttonStyle(.cue())
+            Button("Rehearse", action: onRehearse).buttonStyle(.cue())
             PlayButton(action: onPlay)
                 .help("Play slideshow (⌥⌘P)")
         }

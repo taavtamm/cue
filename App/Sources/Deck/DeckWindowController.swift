@@ -12,7 +12,10 @@ final class DeckWindowController: NSWindowController, NSWindowDelegate {
 
     private let model: DeckPreviewModel
     private let preview = SlideRenderer(surface: .editor)
-    private var show: ShowWindowController?
+    private var show: ShowSession?
+    private lazy var displays = DisplayCoordinator(sidecarURL: deck.sidecarURL)
+    private var displaysWindow: DisplaysWindowController?
+    private lazy var network = DeckNetworkAccess(document: deck)
 
     init(deck: DeckDocument) {
         self.deck = deck
@@ -42,9 +45,13 @@ final class DeckWindowController: NSWindowController, NSWindowDelegate {
             model: model,
             onPrevious: { [weak self] in self?.step(by: -1) },
             onNext: { [weak self] in self?.step(by: 1) },
-            onPlay: { [weak self] in self?.present(fromSlide: self?.model.slide ?? 0) }
+            onPlay: { [weak self] in self?.present(fromSlide: self?.model.slide ?? 0) },
+            onRehearse: { [weak self] in self?.present(fromSlide: self?.model.slide ?? 0, mode: .rehearse) },
+            onDisplays: { [weak self] in self?.showDisplays(nil) }
         ))
-        let stack = NSStackView(views: [preview, bar])
+        let banner = NSHostingView(rootView: NetworkAccessBanner(access: network))
+        banner.setContentHuggingPriority(.required, for: .vertical)
+        let stack = NSStackView(views: [banner, preview, bar])
         stack.orientation = .vertical
         stack.spacing = 0
         stack.edgeInsets = NSEdgeInsets(top: 28, left: 0, bottom: 0, right: 0)
@@ -56,6 +63,8 @@ final class DeckWindowController: NSWindowController, NSWindowDelegate {
         preview.onEvent = { [weak self] event in
             if case .liveContent(let slides) = event { self?.model.noteLive(slides) }
         }
+        preview.onSandboxEvent = { [weak self] event in self?.network.handle(event) }
+        network.onAllowed = { [weak self] in self?.loadPreview() } // Reload with the newly allowed hosts.
         Task {
             do {
                 try await preview.load(DeckSource(document: deck), at: ShowPosition(slide: model.slide))
@@ -75,10 +84,28 @@ final class DeckWindowController: NSWindowController, NSWindowDelegate {
 
     @objc func playSlideshow(_ sender: Any?) { present(fromSlide: model.slide) }
     @objc func playFromStart(_ sender: Any?) { present(fromSlide: 0) }
+    @objc func rehearse(_ sender: Any?) { present(fromSlide: model.slide, mode: .rehearse) }
 
-    func present(fromSlide slide: Int) {
+    @objc func showDisplays(_ sender: Any?) {
+        let controller = displaysWindow ?? DisplaysWindowController(
+            coordinator: displays,
+            onRehearse: { [weak self] in self?.rehearse(nil) },
+            onStart: { [weak self] in self?.playSlideshow(nil) }
+        )
+        displaysWindow = controller
+        controller.showWindow(nil)
+        Task { await displays.refreshFocus() }
+        #if DEBUG
+        if let window = controller.window, let chrome = controller.chrome {
+            Task { await ShowSnapshots.capture(window: window, chrome: chrome, named: "displays.png") }
+        }
+        #endif
+    }
+
+    func present(fromSlide slide: Int, mode: ShowSession.Mode = .present) {
         guard show == nil else { return }
-        let show = ShowWindowController(deck: deck, startSlide: slide)
+        let show = ShowSession(deck: deck, startSlide: slide, mode: mode, displays: displays)
+        show.onOpenDisplays = { [weak self] in self?.showDisplays(nil) }
         show.onEnd = { [weak self] lastSlide in
             guard let self else { return }
             self.show = nil

@@ -22,6 +22,9 @@ public enum BridgeCommand: Sendable, Equatable, Codable {
     case setWhite(Bool)
     /// Pause or resume Web Animations, media and timers where possible.
     case setPaused(Bool)
+    /// Line this surface's slide animations up with another surface's clock,
+    /// so mirrored screens show the same frame. See `AnimationClock`.
+    case alignAnimations(AnimationClock)
 }
 
 public struct PlayerConfig: Sendable, Equatable, Codable {
@@ -47,7 +50,9 @@ public struct PlayerConfig: Sendable, Equatable, Codable {
 }
 
 public enum SurfaceKind: String, Sendable, Codable {
-    case stage, presenterCurrent, nextPreview, editor, thumbnail, export
+    /// `mirror` is a second audience screen: it animates like the stage but
+    /// leaves auto-builds to the stage, so each step is requested once.
+    case stage, mirror, presenterCurrent, nextPreview, editor, thumbnail, export
 }
 
 /// JS → Swift. Posted by CueBridge to `CueBridge.handlerName`.

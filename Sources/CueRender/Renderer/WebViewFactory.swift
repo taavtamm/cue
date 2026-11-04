@@ -12,9 +12,13 @@ enum WebViewFactory {
         surface: SurfaceKind,
         rules: WKContentRuleList,
         messages: BridgeMessageHandler,
-        policy: SandboxPolicy
+        policy: SandboxPolicy,
+        deckScriptsEnabled: Bool = true
     ) -> WKWebView {
         let configuration = WKWebViewConfiguration()
+        // Off only after a deck's scripts hung the page. Cue's own scripts
+        // (bridge, guard) are user scripts and keep running.
+        configuration.defaultWebpagePreferences.allowsContentJavaScript = deckScriptsEnabled
         configuration.websiteDataStore = .nonPersistent()
         configuration.setURLSchemeHandler(DeckSchemeHandler(source: source), forURLScheme: DeckSchemeHandler.scheme)
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = false
@@ -25,6 +29,7 @@ enum WebViewFactory {
         let content = configuration.userContentController
         let world = BridgeScript.world
         content.add(rules)
+        content.addUserScript(PageGuardScript.userScript)
         content.add(messages, contentWorld: world, name: CueBridge.handlerName)
         content.addUserScript(BridgeScript.userScript(in: world))
         content.addUserScript(configureScript(source: source, surface: surface, world: world))

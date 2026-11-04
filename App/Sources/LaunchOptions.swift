@@ -13,5 +13,11 @@ enum LaunchOptions {
 
     static var presentImmediately: Bool { UserDefaults.standard.bool(forKey: "present") }
 
+    /// `-rehearse YES`: start in rehearsal windows instead of full screen.
+    static var rehearseImmediately: Bool { UserDefaults.standard.bool(forKey: "rehearse") }
+
+    /// `-displays YES`: open the Displays window with the deck.
+    static var showDisplays: Bool { UserDefaults.standard.bool(forKey: "displays") }
+
     static var startSlide: Int { max(0, UserDefaults.standard.integer(forKey: "slide") - 1) }
 }

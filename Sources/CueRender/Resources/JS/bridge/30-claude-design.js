@@ -20,7 +20,7 @@ cue.createClaudeDesignPlayer = (config) => {
 
   const embeds = cue.createEmbeds(motion, frameFor);
   const runsEmbeds = config.surface !== 'thumbnail' && config.surface !== 'export';
-  const animates = ['stage', 'presenterCurrent', 'editor'].includes(config.surface);
+  const animates = ['stage', 'mirror', 'presenterCurrent', 'editor'].includes(config.surface);
 
   let current = null; // { slide, build }
   let buildAnimations = [];

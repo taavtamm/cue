@@ -40,6 +40,11 @@ enum MainMenu {
         play.keyEquivalentModifierMask = [.command, .option]
         let fromStart = #selector(DeckWindowController.playFromStart(_:))
         menu.addItem(withTitle: "Play from Start", action: fromStart, keyEquivalent: "")
+        menu.addItem(withTitle: "Rehearse on This Mac", action: #selector(DeckWindowController.rehearse(_:)),
+                     keyEquivalent: "r").keyEquivalentModifierMask = [.command, .option]
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "Displays…", action: #selector(DeckWindowController.showDisplays(_:)),
+                     keyEquivalent: "d").keyEquivalentModifierMask = [.command, .option]
         return menu
     }
 

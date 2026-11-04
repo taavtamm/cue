@@ -7,6 +7,11 @@ public struct GlassPanelStyle: Sendable, Equatable {
     public var cornerRadius: CGFloat
     public var tint: Color
 
+    public init(cornerRadius: CGFloat, tint: Color = CueTheme.glassTint) {
+        self.cornerRadius = cornerRadius
+        self.tint = tint
+    }
+
     public static let window = GlassPanelStyle(cornerRadius: CueTheme.windowRadius, tint: CueTheme.glassTint)
     public static let panel = GlassPanelStyle(cornerRadius: CueTheme.panelRadius, tint: CueTheme.glassTint)
 }

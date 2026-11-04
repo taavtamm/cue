@@ -11,6 +11,8 @@ public struct DeckDocument: Sendable {
     /// The current source text. Edits replace this; `originalData` stays.
     public private(set) var source: String
     public private(set) var structure: DeckStructure
+    /// Network hosts the HTML names, found before any of its code runs.
+    public private(set) var remoteResources: [RemoteResource]
     /// The text as decoded on open. Compared as text, not bytes, because
     /// decoding drops a byte-order mark that re-encoding wouldn't restore.
     private let originalSource: String
@@ -23,7 +25,7 @@ public struct DeckDocument: Sendable {
         self.encoding = encoding
         source = text
         originalSource = text
-        structure = try Self.analyse(text, registry: registry)
+        (structure, remoteResources) = try Self.analyse(text, registry: registry)
     }
 
     public var isModified: Bool {
@@ -40,7 +42,7 @@ public struct DeckDocument: Sendable {
 
     /// Replaces the source text and re-runs the adapters.
     public mutating func replaceSource(_ text: String, registry: AdapterRegistry = .standard) throws {
-        structure = try Self.analyse(text, registry: registry)
+        (structure, remoteResources) = try Self.analyse(text, registry: registry)
         source = text
     }
 
@@ -53,9 +55,13 @@ public struct DeckDocument: Sendable {
         try data.write(to: target, options: .atomic)
     }
 
-    private static func analyse(_ text: String, registry: AdapterRegistry) throws -> DeckStructure {
+    private static func analyse(
+        _ text: String,
+        registry: AdapterRegistry
+    ) throws -> (DeckStructure, [RemoteResource]) {
         let root = try HTMLParser().parse(text)
-        return registry.structure(for: AdapterInput(root: root, source: text))
+        let structure = registry.structure(for: AdapterInput(root: root, source: text))
+        return (structure, RemoteResourceScanner.scan(root: root, source: text))
     }
 }
 

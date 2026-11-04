@@ -37,6 +37,8 @@
 	<string>1</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
+	<key>NSFocusStatusUsageDescription</key>
+	<string>Cue warns you before a show when Focus is off, so notifications don't appear on the projector.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 </dict>

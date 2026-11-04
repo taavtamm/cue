@@ -18,6 +18,8 @@ extension BridgeCommand {
             return ["type": "setWhite", "value": on]
         case .setPaused(let on):
             return ["type": "setPaused", "value": on]
+        case .alignAnimations(let clock):
+            return ["type": "alignAnimations", "clock": Self.object(clock)]
         }
     }
 

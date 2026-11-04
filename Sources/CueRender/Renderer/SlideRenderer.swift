@@ -12,12 +12,19 @@ import WebKit
 public final class SlideRenderer: NSView {
     public let surface: SurfaceKind
     public var onEvent: ((BridgeEvent) -> Void)?
+    /// Blocked hosts, refusals and hung scripts. Presenting code can ignore it.
+    public var onSandboxEvent: ((SandboxEvent) -> Void)?
+    /// False after the deck's scripts hung this surface; Cue's player still runs.
+    public private(set) var deckScriptsEnabled = true
+    /// How quickly a hung deck is noticed. Tests shorten it.
+    var watchdogInterval: Duration = .seconds(3)
     public private(set) var isReady = false
     public private(set) var slideCount = 0
 
     private var webView: WKWebView?
     private let messages = BridgeMessageHandler()
     private let policy = SandboxPolicy()
+    private let watchdog = ScriptWatchdog()
     private let cover = NSView()
     private var source: DeckSource?
     private var position = ShowPosition.start
@@ -33,6 +40,8 @@ public final class SlideRenderer: NSView {
         cover.isHidden = true
         messages.onEvent = { [weak self] event in self?.handle(event) }
         policy.onContentProcessTerminated = { [weak self] in self?.reload() }
+        messages.onSandboxEvent = { [weak self] event in self?.onSandboxEvent?(event) }
+        policy.onRefusal = { [weak self] refusal in self?.onSandboxEvent?(.refused(refusal)) }
     }
 
     @available(*, unavailable)
@@ -46,11 +55,29 @@ public final class SlideRenderer: NSView {
         self.position = position
         isReady = false
         let rules = try await NetworkRules.compile(allowedHosts: source.allowedHosts)
+        policy.rules = SandboxRules(
+            pageURL: source.pageURL, allowedHosts: source.allowedHosts, permissions: source.permissions
+        )
         let webView = WebViewFactory.make(
-            source: source, surface: surface, rules: rules, messages: messages, policy: policy
+            source: source, surface: surface, rules: rules, messages: messages, policy: policy,
+            deckScriptsEnabled: deckScriptsEnabled
         )
         install(webView)
         webView.load(URLRequest(url: source.pageURL))
+        if deckScriptsEnabled { watchForHangs(webView) }
+    }
+
+    /// A deck that locks up its page gets reloaded once with its own scripts
+    /// off, so the show goes on with Cue's player and the deck's static content.
+    private func watchForHangs(_ webView: WKWebView) {
+        watchdog.interval = watchdogInterval
+        watchdog.start(webView) { [weak self] in
+            guard let self, self.deckScriptsEnabled else { return }
+            self.deckScriptsEnabled = false
+            self.isReady = false // The hung page can't answer; wait for the reloaded one.
+            self.onSandboxEvent?(.scriptsStopped)
+            self.reload()
+        }
     }
 
     private func install(_ newWebView: WKWebView) {
@@ -119,7 +146,7 @@ public final class SlideRenderer: NSView {
         return try await webView.callAsyncJavaScript(functionBody, contentWorld: .page)
     }
 
-    private func send(_ command: BridgeCommand) {
+    func send(_ command: BridgeCommand) {
         guard let webView else { return }
         let js = "window.__cue.receive(\(JSONText.string(command.wireMessage)))"
         webView.evaluateJavaScript(js, in: nil, in: BridgeScript.world) { _ in }
