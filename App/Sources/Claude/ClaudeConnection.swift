@@ -17,6 +17,8 @@ final class ClaudeConnection {
     /// Clients waiting for Allow / Don't Allow.
     private(set) var awaitingApproval: [String] = []
     let approvals = ClientApproval()
+    /// What the agent is doing right now, for the Ask bar.
+    let activity = ClaudeActivity()
 
     /// The editor Claude works on: set by the app (front-most deck window).
     @ObservationIgnored var frontSession: () -> EditorSession? = { nil }

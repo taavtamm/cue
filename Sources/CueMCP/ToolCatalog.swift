@@ -1,10 +1,10 @@
 import MCP
 
 /// Cue's tools, as Claude sees them. Slide numbers are 1-based. Every tool
-/// that changes the deck applies the change live, returns a change-set id,
-/// and does not save: the user accepts or undoes it in Cue.
+/// that changes the deck is one change: applied and kept at once (not saved
+/// until the user saves), with a change-set id that `revert_change` undoes.
 enum ToolCatalog {
-    static let tools: [Tool] = reading + slides + elements + inserting + changes + asking
+    static let tools: [Tool] = reading + slides + elements + inserting + DesignTools.tools + changes + asking
 
     static let reading: [Tool] = [
         tool("get_outline", "The open deck: file, canvas size, and every slide's number, id, label, notes, build count "
@@ -67,11 +67,14 @@ enum ToolCatalog {
              frame.merging(["slide": slideNumber, "text": string("The text."), "font_size": number("Pixels."),
                             "font_family": string("Optional font family."), "summary": summary]) { a, _ in a },
              ["slide", "text"]),
-        tool("insert_image", "Adds an image to a slide, embedded in the HTML. “source” is a data: URI or a file "
-             + "path inside the deck's folder.",
-             frame.merging(["slide": slideNumber, "source": string("data: URI or file path in the deck folder."),
+        tool("insert_image", "Adds an image to a slide, embedded in the HTML (the deck stays one file). Give "
+             + "“url” (https; Cue downloads it) or “source” (a data: URI or a file path inside the deck's folder). "
+             + "Images larger than twice the slide are scaled down. To replace an existing image, use "
+             + "edit_element on it with a new src attribute instead.",
+             frame.merging(["slide": slideNumber, "url": string("https:// address of the image."),
+                            "source": string("data: URI or file path in the deck folder."),
                             "description": string("Alt text."), "summary": summary]) { a, _ in a },
-             ["slide", "source", "description"]),
+             ["slide", "description"]),
         tool("insert_shape", "Adds a shape to a slide.",
              frame.merging(["slide": slideNumber, "summary": summary,
                             "shape": ["type": "string", "enum": ["rectangle", "roundedRectangle", "ellipse", "line", "arrow"]]]) { a, _ in a },
@@ -79,11 +82,11 @@ enum ToolCatalog {
     ]
 
     static let changes: [Tool] = [
-        tool("list_changes", "Change sets made in this session and their status (pending, accepted, reverted, superseded).",
-             [:], readOnly: true),
-        tool("accept_change", "Keeps a pending change set (the user normally does this in Cue).",
+        tool("list_changes", "Change sets made in this session and their status (accepted = kept, pending = waiting "
+             + "for the user's review, reverted, superseded).", [:], readOnly: true),
+        tool("accept_change", "Keeps a pending change set. Only needed when the user turned on reviewing.",
              ["id": string("Change-set id.")], ["id"]),
-        tool("revert_change", "Undoes one pending change set.", ["id": string("Change-set id.")], ["id"]),
+        tool("revert_change", "Undoes one change set, restoring exactly what was there.", ["id": string("Change-set id.")], ["id"]),
     ]
 
     static let asking: [Tool] = [

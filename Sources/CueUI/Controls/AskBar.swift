@@ -9,6 +9,7 @@ public struct AskBar: View {
     let onSubmit: () -> Void
     var onSuggestion: (String) -> Void = { _ in }
     var onDictate: () -> Void = {}
+    var activity: AskBarActivity = .idle
     @Environment(\.cueRendersStatically) private var rendersStatically
 
     public init(
@@ -17,8 +18,10 @@ public struct AskBar: View {
         suggestions: [String] = [],
         onSubmit: @escaping () -> Void,
         onSuggestion: @escaping (String) -> Void = { _ in },
-        onDictate: @escaping () -> Void = {}
+        onDictate: @escaping () -> Void = {},
+        activity: AskBarActivity = .idle
     ) {
+        self.activity = activity
         self._text = text
         self.placeholder = placeholder
         self.suggestions = suggestions
@@ -42,7 +45,10 @@ public struct AskBar: View {
         .padding(.trailing, 8)
         .frame(height: 58)
         .background(Color(red: 14 / 255, green: 14 / 255, blue: 18 / 255, opacity: 0.95), in: Capsule())
-        .siriGlow(Capsule().inset(by: -1), ringWidth: 1.5, haloBlur: 16, haloOpacity: 0.55)
+        .overlay { if activity.shimmers { AskBarShimmer() } }
+        .siriGlow(Capsule().inset(by: -1), ringWidth: 1.5, haloBlur: 16, haloOpacity: activity.haloOpacity,
+                  speed: activity.glowSpeed, isPaused: activity.glowIsStill)
+        .animation(.easeInOut(duration: 0.3), value: activity)
     }
 
     @ViewBuilder private var field: some View {

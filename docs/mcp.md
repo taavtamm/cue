@@ -34,27 +34,61 @@ Slide numbers are 1-based. Elements are targets: `{"cue_id": …}` or
 | Tool | What it does |
 |---|---|
 | get_outline | File, canvas, every slide's number, id, label, notes, builds, live content |
-| get_slide_html | One slide's HTML as written |
+| get_slide_html | One slide's HTML as written (large images as `CUE-IMAGE-…` placeholders) |
 | get_selection | What the user selected: slide, tag, cue_id, path, start tag, computed styles |
 | render_slide | PNG of a slide (final build unless `build`) |
 | edit_element | Text, formatted html, attributes and/or inline style of one element |
 | replace_slide_html | Replace a slide's whole element |
 | add_slide / delete_slide / move_slide | Structure |
 | set_notes / set_builds | Speaker notes, build order |
-| insert_text_box / insert_image / insert_shape | New elements (images: data: URI or a file in the deck folder, embedded, ≤ 8 MB) |
+| insert_text_box / insert_image / insert_shape | New elements. Images: `url` (https, Cue downloads it), a data: URI or a file in the deck folder; embedded, ≤ 20 MB, scaled to ≤ 2× the canvas |
 | move_element / resize_element / delete_element | Placement |
 | list_changes / accept_change / revert_change | Change sets |
 | next_request / complete_request | The Ask-bar loop |
+| get_styles | The design system: theme variables, fonts, colours, top classes, stylesheets; with `selector`/`query`, matching rules |
+| set_deck_style | Deck-wide CSS in Cue's `<style id="cue-overrides">` (merge by selector, or replace) |
+| set_theme_variables | `:root` custom properties in the overrides |
+| add_font | A Google Fonts `<link>` in `<head>` (shows once the user allows the two font hosts) |
+| get_head / set_head_html | The `<head>` contents |
+| get_deck_html / replace_deck_html | The whole document, for complete redesigns |
+| get_embeds / edit_embed | A slide's live web embeds (sandboxed HTML) and its transition |
+| set_transition | none, fade, push, magic (plays as fade) |
+| render_deck | Contact sheet PNG of up to 24 slides |
+
+Large images, stylesheets and scripts go to Claude as placeholders
+(`data:image/png;base64,CUE-IMAGE-<hash>`, `/* CUE-BLOCK-<hash>: … */`) and are
+restored from the deck in any HTML Claude sends back, so a rewritten slide,
+head or document keeps them. An unknown placeholder is refused.
+
+## Redesigns
+
+The server's instructions give Claude this workflow:
+
+1. `get_outline`, then `get_styles` for the design system and `render_deck` to see every slide.
+2. Deck-wide looks: `set_theme_variables` (decks built on variables) or `set_deck_style`
+   (any CSS, `!important` where the deck styles inline). `add_font` for type.
+3. One element: `edit_element`. A new layout: `replace_slide_html`. Pictures:
+   `insert_image` with a `url`. Everything at once: `replace_deck_html`.
+4. Check with `render_deck` or `render_slide`.
+
+The deck's own stylesheets are never rewritten: deck-wide styles live in Cue's
+override block, loaded after them, so removing that block undoes every style
+change. Claude Design decks keep transitions and embeds in their deck-motion
+JSON, which is patched in place; Cue-convention decks use
+`data-cue-transition` on the slide (the generic player plays fade and push).
+Other formats: embeds are `<iframe srcdoc>` on the slide (`iframe-1`, …);
+transitions are written as `data-cue-transition` but only Cue's players play them.
 
 Resources: `cue://deck/outline`, `cue://deck/slide/{n}/html`,
 `cue://editor/selection`, `cue://deck/assets`.
 
 ## Change sets
 
-Every write applies at once (the slide shows it, it's in Edit › Undo) and
-returns a change-set id. Nothing is saved. A banner on the canvas shows the
-latest pending change with a before/after and **Accept** / **Undo**; "All
-changes" lists them. Settings › Claude › Auto-accept skips the waiting.
+Every tool call that changes the deck is one change: applied and kept
+immediately (the slide shows it, it's in Edit › Undo), not saved to the file
+until the user saves, and it returns a change-set id. The user, or Claude with
+`revert_change`, can undo it. `accept_change` only matters when the user has
+turned on "Review Claude's edits before keeping them" in Settings › Claude.
 
 Each change set can be undone on its own later: `ChangeSetLedger` keeps its
 inverse patch and shifts it past every later edit. If a later edit touched the
@@ -81,7 +115,11 @@ sampling yet, so in practice the `next_request` loop is the path.
 - Local only: a Unix socket in a 0700 folder, the socket itself 0600, so other
   macOS accounts can't connect. No network port.
 - Every client is approved by the user once; denied clients get a clear error.
-- Writes never save; the user accepts or undoes each change.
+- Writes never save; each is one change the user (or Claude) can undo.
+- Claude can't reach the network through the deck: `add_font` only writes the
+  `<link>`, and the deck's sandbox still asks the user to allow the font hosts.
+  `insert_image` with a `url` is Cue downloading on Claude's request (https only,
+  20 MB, must be an image); the change's summary names the host.
 - Images Claude inserts by path must be inside the deck's folder.
 - The helper never writes to stdout except MCP bytes from Cue.
 

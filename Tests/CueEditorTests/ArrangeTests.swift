@@ -1,6 +1,6 @@
 import AppKit
 import CoreGraphics
-import CueCore
+@testable import CueCore
 import Foundation
 import Testing
 @testable import CueEditor

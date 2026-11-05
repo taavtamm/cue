@@ -55,8 +55,11 @@ struct ChangeSetReport: Encodable {
         summary = change.summary
         slide = change.slide.map { $0 + 1 }
         changes = change.excerpts
-        note = change.status == .pending
-            ? "Applied live in Cue, not saved. The user accepts or undoes it."
-            : "The user has \(change.status.rawValue) this change."
+        switch change.status {
+        case .pending: note = "Applied and shown in Cue, waiting for the user to keep it (they turned on reviewing). Not saved to the file until they save."
+        case .accepted: note = "Applied and kept. Not saved to the file until the user saves; undo it with revert_change."
+        case .reverted: note = "Undone."
+        case .superseded: note = "Later edits changed the same text, so it can no longer be undone on its own."
+        }
     }
 }

@@ -53,6 +53,8 @@ struct SourceEditor {
             return (try replaceSlide(index, with: html), .reload)
         case .patches(let edit):
             return (edit, .reload)
+        case .setOverrideStylesheet, .setHeadHTML, .appendToHead, .replaceDocument, .setEmbedHTML, .setTransition:
+            return try deckEdit(for: operation)
         }
     }
 

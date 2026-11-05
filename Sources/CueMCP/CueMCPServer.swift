@@ -9,12 +9,23 @@ public final class CueMCPServer: Sendable {
     public static let name = "cue"
     public static let version = "0.1"
     static let instructions = """
-        Cue is a presentation app; these tools read and edit the deck the user has open in Cue. Slide numbers \
-        are 1-based. Start with get_outline (and get_selection to see what the user is looking at). Every edit \
-        is applied live and returns a change-set id; nothing is saved, and the user accepts or undoes each \
-        change in Cue. Prefer small edits (edit_element) over replacing whole slides. Use render_slide to check \
-        your work. To serve requests the user types into Cue's Ask bar, call next_request in a loop, do what \
-        each request asks, then call complete_request with a one-line summary.
+        Cue is a presentation app; these tools read and edit the HTML deck the user has open in Cue, and can do \
+        anything a web page can: text, colours, fonts, images, layouts, complete redesigns. Slide numbers are \
+        1-based. Start with get_outline (and get_selection to see what the user is looking at).
+
+        Every tool call that changes the deck is one change: applied and kept immediately (not saved to the file \
+        until the user saves), it returns a change-set id, and the user or you can undo it with revert_change. \
+        accept_change only matters when the user has turned on reviewing.
+
+        For redesigns: get_styles for the design system, render_deck to see every slide; then \
+        set_theme_variables or set_deck_style for deck-wide looks (Cue's own override stylesheet; the deck's \
+        stylesheet is never rewritten), add_font for Google Fonts, edit_element for one element, \
+        replace_slide_html for a new layout, insert_image (with a url) for pictures, replace_deck_html for a \
+        complete rebuild; check with render_deck or render_slide. Large images, stylesheets and scripts come as \
+        placeholders: keep them exactly as they are and Cue restores them.
+
+        To serve requests the user types into Cue's Ask bar, call next_request in a loop, do what each request \
+        asks, then call complete_request with a one-line summary.
         """
 
     public let host: DeckHost
@@ -51,7 +62,11 @@ public final class CueMCPServer: Sendable {
             if let refusal = await Self.refusal(for: name, host: host) {
                 return CallTool.Result(content: [.text(refusal)], isError: true)
             }
-            return await ToolRunner(host: host, client: name).run(params.name, params.arguments)
+            let activity = ToolActivity(client: name, tool: params.name, arguments: params.arguments)
+            await host.toolDidStart(activity)
+            let result = await ToolRunner(host: host, client: name).run(params.name, params.arguments)
+            await host.toolDidFinish(activity, failed: result.isError == true)
+            return result
         }
         await server.withMethodHandler(ListResources.self) { _ in ListResources.Result(resources: ResourceCatalog.resources) }
         await server.withMethodHandler(ListResourceTemplates.self) { _ in

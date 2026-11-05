@@ -7,9 +7,18 @@ import MCP
 extension ToolRunner {
     func edit(_ name: String, _ args: ToolArguments) async throws -> CallTool.Result {
         let document = try await document()
+        var args = args
+        var fetchedFrom: String?
+        if name == "insert_image", let address = args.string("url") {
+            guard let url = URL(string: address), let host = url.host else { throw CueMCPError.invalid("“url” isn't a web address.") }
+            let data = try await self.host.fetchImage(url)
+            args = args.setting("source", to: .string("data:\(ImageSniffer.mime(data) ?? "image/png");base64,\(data.base64EncodedString())"))
+            fetchedFrom = host
+        }
         let facts = DeckDocumentFacts(slideCount: document.structure.slides.count)
         let (operations, slide, fallback) = try plan(name, args, document, facts)
-        let summary = args.string("summary") ?? fallback
+        var summary = args.string("summary") ?? fallback
+        if let fetchedFrom { summary += " (image from \(fetchedFrom))" }
         let change = try await host.apply(operations, summary: summary, client: client, slide: slide)
         return try json(ChangeSetReport(change))
     }
@@ -64,6 +73,9 @@ extension ToolRunner {
             let index = try args.slideIndex(in: facts)
             return ([.insertElement(slide: index, html: try insertion(name, args, document))], index, "Inserted an element")
         default:
+            if let planned = try designPlan(name, args, document, facts) {
+                return (planned.operations, planned.slide, planned.summary)
+            }
             throw CueMCPError.invalid("Cue has no tool “\(name)”.")
         }
     }

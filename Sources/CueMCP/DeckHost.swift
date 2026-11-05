@@ -21,6 +21,18 @@ public protocol DeckHost: Sendable {
     func approval(for client: String) async -> ClientApproval.Decision
     /// Ask-bar requests waiting for Claude.
     var mailbox: RequestMailbox { get }
+    /// Downloads an image Claude asked Cue to add (`insert_image` with a url).
+    func fetchImage(_ url: URL) async throws -> Data
+    /// An approved tool call is starting (e.g. to animate the Ask bar while Claude edits).
+    func toolDidStart(_ activity: ToolActivity) async
+    /// It finished; `failed` when it returned an error.
+    func toolDidFinish(_ activity: ToolActivity, failed: Bool) async
+}
+
+extension DeckHost {
+    public func fetchImage(_ url: URL) async throws -> Data { try await ImageDownloader().fetch(url) }
+    public func toolDidStart(_ activity: ToolActivity) async {}
+    public func toolDidFinish(_ activity: ToolActivity, failed: Bool) async {}
 }
 
 /// The selection, as Claude sees it in `get_selection`.

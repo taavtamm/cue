@@ -10,6 +10,13 @@ struct ToolArguments: Sendable {
 
     func string(_ key: String) -> String? { values[key]?.stringValue }
 
+    /// A copy with `key` set, e.g. an image Cue downloaded as `source`.
+    func setting(_ key: String, to value: Value) -> ToolArguments {
+        var values = values
+        values[key] = value
+        return ToolArguments(values)
+    }
+
     func int(_ key: String) -> Int? {
         if let int = values[key]?.intValue { return int }
         if let double = values[key]?.doubleValue, double.rounded() == double { return Int(double) }

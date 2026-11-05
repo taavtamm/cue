@@ -44,5 +44,21 @@ actor FakeHost: DeckHost {
     }
 
     func renderSlide(_ slide: Int, build: Int?) async throws -> Data { Data("png of slide \(slide)".utf8) }
+
+    /// Tool calls the server reported, in order: "start get_outline", "finish edit_element failed".
+    private(set) var activityLog: [String] = []
+    private(set) var activities: [ToolActivity] = []
+    /// Image downloads go through this (a stubbed session in tests).
+    var downloader = ImageDownloader()
+    func setDownloader(_ downloader: ImageDownloader) { self.downloader = downloader }
+
+    func fetchImage(_ url: URL) async throws -> Data { try await downloader.fetch(url) }
+    func toolDidStart(_ activity: ToolActivity) async {
+        activities.append(activity)
+        activityLog.append("start \(activity.tool)")
+    }
+    func toolDidFinish(_ activity: ToolActivity, failed: Bool) async {
+        activityLog.append("finish \(activity.tool)\(failed ? " failed" : "")")
+    }
     func approval(for client: String) async -> ClientApproval.Decision { decision }
 }

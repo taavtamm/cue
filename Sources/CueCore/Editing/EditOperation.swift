@@ -39,6 +39,22 @@ public enum EditOperation: Sendable, Equatable, Codable {
     /// Raw patches on the current source. Used to revert one change set
     /// after later edits (`ChangeSetLedger`); one undo step like any other.
     case patches(SourceEdit)
+    /// Cue's whole `<style id="cue-overrides">` stylesheet, created at the end
+    /// of `<head>` if missing. `merge` adds or replaces rules by selector and
+    /// keeps the others; otherwise the block's CSS is replaced. The deck's
+    /// own stylesheets are never touched.
+    case setOverrideStylesheet(css: String, merge: Bool)
+    /// The contents of `<head>`: meta, title, links and styles.
+    case setHeadHTML(String)
+    /// Markup added at the end of `<head>`, e.g. a font's `<link>`.
+    case appendToHead(String)
+    /// The whole document, for complete redesigns.
+    case replaceDocument(String)
+    /// A live web embed's own HTML: the `srcdoc` it runs in its sandbox.
+    /// `embed` is the embed's id (Claude Design decks) or `iframe-<n>`.
+    case setEmbedHTML(slide: Int, embed: String, html: String)
+    /// How the deck moves on from a slide: "fade", "push", "magic", or nil for none.
+    case setTransition(slide: Int, kind: String?)
 
     /// Edits with the same key, made in quick succession, undo as one.
     var coalescingKey: String? {
