@@ -33,8 +33,11 @@ public struct ChangeSet: Sendable, Equatable, Codable, Identifiable {
     /// The patches that undo this change, in the *current* source's offsets.
     public internal(set) var inverse: SourceEdit
 
+    /// `source` is the text the edit was applied to; when given, each excerpt
+    /// is widened to the surrounding text (up to the nearest tag), so the user
+    /// sees "hold up." → "hold up everywhere.", not "" → "everyw".
     public init(id: String, client: String, summary: String, slide: Int?, applied: SourceEdit, inverse: SourceEdit,
-                createdAt: Date = Date()) {
+                source: String? = nil, createdAt: Date = Date()) {
         self.id = id
         self.client = client
         self.summary = summary
@@ -43,8 +46,25 @@ public struct ChangeSet: Sendable, Equatable, Codable, Identifiable {
         status = .pending
         self.inverse = inverse
         excerpts = zip(applied.patches, inverse.patches).map { forward, back in
-            Excerpt(before: Self.clip(back.replacement), after: Self.clip(forward.replacement))
+            guard let source else { return Excerpt(before: Self.clip(back.replacement), after: Self.clip(forward.replacement)) }
+            return Self.excerpt(of: forward, in: source)
         }
+    }
+
+    /// The changed region with its surrounding text, stopping at a tag edge
+    /// (`>` before it, `<` after it) or after `reach` characters.
+    static func excerpt(of patch: SourcePatch, in source: String, reach: Int = 80) -> Excerpt {
+        let text = Array(source.utf16)
+        var start = min(patch.range.start, text.count), end = min(patch.range.end, text.count)
+        let open = UInt16(UInt8(ascii: "<")), close = UInt16(UInt8(ascii: ">"))
+        var steps = 0
+        while start > 0, text[start - 1] != close, steps < reach { start -= 1; steps += 1 }
+        steps = 0
+        while end < text.count, text[end] != open, steps < reach { end += 1; steps += 1 }
+        let lead = String(decoding: text[start..<patch.range.start], as: UTF16.self)
+        let old = String(decoding: text[patch.range.start..<patch.range.end], as: UTF16.self)
+        let tail = String(decoding: text[patch.range.end..<end], as: UTF16.self)
+        return Excerpt(before: clip(lead + old + tail), after: clip(lead + patch.replacement + tail))
     }
 
     static func clip(_ text: String, limit: Int = 400) -> String {

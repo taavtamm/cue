@@ -9,7 +9,10 @@ enum ToolCatalog {
     static let reading: [Tool] = [
         tool("get_outline", "The open deck: file, canvas size, and every slide's number, id, label, notes, build count "
              + "and whether it has live web content. Start here.", [:], readOnly: true),
-        tool("get_slide_html", "One slide's HTML exactly as written in the file.", ["slide": slideNumber], ["slide"],
+        tool("get_slide_html", "One slide's HTML as written in the file, except that large embedded images "
+             + "(base64 data: URIs) appear as placeholders like data:image/png;base64,CUE-IMAGE-3f2a9c1d07b4e6a8. "
+             + "Keep placeholders exactly as they are in HTML you send back; Cue puts the images back.",
+             ["slide": slideNumber], ["slide"],
              readOnly: true),
         tool("get_selection", "What the user is looking at and has selected in Cue right now: slide, element tag, "
              + "cue_id and path (usable as a target), its start tag in the file, and its computed styles.", [:],

@@ -26,7 +26,7 @@ public struct ChangeSetLedger: Sendable {
         counter += 1
         note(applied) // Earlier change sets shift past this one.
         let change = ChangeSet(id: "cs-\(counter)", client: client, summary: summary, slide: slide,
-                               applied: applied, inverse: inverse)
+                               applied: applied, inverse: inverse, source: source)
         changes.append(change)
         return change
     }

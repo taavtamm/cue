@@ -20,16 +20,18 @@ extension ToolRunner {
         switch name {
         case "edit_element":
             let path = try ElementTarget.resolve(args.object("target"), in: document)
-            return (try elementEdits(path, args), slide(containing: path, document), "Edited an element")
+            return (try elementEdits(path, args, document), slide(containing: path, document), "Edited an element")
         case "replace_slide_html":
             let index = try args.slideIndex(in: facts)
-            return ([.replaceSlide(index, html: try args.requiredString("html"))], index, "Replaced slide \(index + 1)")
+            let html = try ImagePlaceholders.restore(try args.requiredString("html"), from: document.source)
+            return ([.replaceSlide(index, html: html)], index, "Replaced slide \(index + 1)")
         case "add_slide":
             let after = try args.requiredInt("after")
             guard (0...facts.slideCount).contains(after) else {
                 throw CueMCPError.invalid("“after” must be 0–\(facts.slideCount).")
             }
-            return ([.addSlide(after: after - 1, html: args.string("html"))], after, "Added a slide after slide \(after)")
+            let html = try args.string("html").map { try ImagePlaceholders.restore($0, from: document.source) }
+            return ([.addSlide(after: after - 1, html: html)], after, "Added a slide after slide \(after)")
         case "delete_slide":
             let index = try args.slideIndex(in: facts)
             return ([.deleteSlide(index)], index, "Deleted slide \(index + 1)")
@@ -66,10 +68,12 @@ extension ToolRunner {
         }
     }
 
-    private func elementEdits(_ path: ElementPath, _ args: ToolArguments) throws -> [EditOperation] {
+    private func elementEdits(_ path: ElementPath, _ args: ToolArguments, _ document: DeckDocument) throws -> [EditOperation] {
         var operations: [EditOperation] = []
         if let text = args.string("text") { operations.append(.setText(path, text)) }
-        if let html = args.string("html") { operations.append(.setInnerHTML(path, html)) }
+        if let html = args.string("html") {
+            operations.append(.setInnerHTML(path, try ImagePlaceholders.restore(html, from: document.source)))
+        }
         for (name, value) in try args.stringMap("attributes") ?? [] {
             operations.append(.setAttribute(path, name: name, value: value))
         }

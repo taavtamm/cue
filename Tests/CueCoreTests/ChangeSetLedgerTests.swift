@@ -91,4 +91,13 @@ struct ChangeSetLedgerTests {
         #expect(document.structure.slides.count == 2)
         #expect(document.source.contains("<h1>Replaced</h1>"))
     }
+
+    /// The user should see the whole phrase change, not the minimal patch.
+    @Test func excerptsShowTheSurroundingText() throws {
+        let before = ##"<div>Plans that <font color="#6a6761">hold up.</font></div>"##
+        let after = ##"<div>Plans that <font color="#6a6761">hold up everywhere.</font></div>"##
+        var ledger = ChangeSetLedger()
+        let change = try #require(try ledger.record(from: before, to: after, client: "claude-code", summary: "x", slide: 0))
+        #expect(change.excerpts == [ChangeSet.Excerpt(before: "hold up.", after: "hold up everywhere.")])
+    }
 }

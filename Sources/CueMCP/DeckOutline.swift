@@ -30,9 +30,11 @@ struct DeckOutline: Encodable {
         }
     }
 
-    /// A range of the source, cut at `limit` characters with a note.
+    /// A range of the source, with large embedded images as placeholders
+    /// (see `ImagePlaceholders`), cut at `limit` characters with a note.
     static func slice(_ source: String, _ range: SourceRange, limit: Int) -> String {
-        let text = (source as NSString).substring(with: NSRange(location: range.start, length: range.length))
+        let raw = (source as NSString).substring(with: NSRange(location: range.start, length: range.length))
+        let text = ImagePlaceholders.shorten(raw)
         guard text.count > limit else { return text }
         return String(text.prefix(limit)) + "\n<!-- … cut at \(limit) characters; the slide is longer. -->"
     }

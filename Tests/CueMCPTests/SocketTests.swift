@@ -51,20 +51,77 @@ struct SocketTests {
         #expect(!process.isRunning && process.terminationStatus == 0)
     }
 
-    @Test func helperExplainsWhenCueIsntRunning() throws {
+    /// No Cue: the helper stays up and answers each request with an MCP error
+    /// (stdout stays protocol-only), and exits cleanly when Claude does.
+    @Test func helperAnswersWhenCueIsntRunning() async throws {
         try #require(FileManager.default.isExecutableFile(atPath: helper.path), "build cue-mcp first")
         let process = Process()
         process.executableURL = helper
         process.arguments = ["--socket", socketPath()] // An explicit socket: never opens the app.
-        let errors = Pipe(), output = Pipe()
+        let input = Pipe(), errors = Pipe(), output = Pipe()
+        process.standardInput = input
         process.standardError = errors
         process.standardOutput = output
         try process.run()
-        process.waitUntilExit()
-        #expect(process.terminationStatus == 1)
+        input.fileHandleForWriting.write(Data((Self.initialize + "\n").utf8))
+        let reply = try await readLine(from: output.fileHandleForReading, timeout: 10)
+        #expect(reply.contains("\"error\"") && reply.contains("Cue isn't running"), "\(reply)")
+        try input.fileHandleForWriting.close()
+        let exited = Date().addingTimeInterval(5)
+        while process.isRunning, Date() < exited { try await Task.sleep(for: .milliseconds(50)) }
+        if process.isRunning { process.terminate() }
+        #expect(process.terminationStatus == 0)
         let message = String(decoding: errors.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
         #expect(message.contains("Cue isn't running"))
-        #expect(output.fileHandleForReading.readDataToEndOfFile().isEmpty, "stdout stays clean for MCP")
+    }
+
+    /// Cue restarts (a new build) mid-session: the helper reconnects and
+    /// replays the handshake, so Claude's next call just works.
+    @Test func helperSurvivesCueRestarting() async throws {
+        try #require(FileManager.default.isExecutableFile(atPath: helper.path), "build cue-mcp first")
+        let (document, _) = try Decks.document()
+        let path = socketPath()
+        var listener = try await startListener(document, at: path)
+        let process = Process()
+        process.executableURL = helper
+        process.arguments = ["--socket", path]
+        let input = Pipe(), output = Pipe()
+        process.standardInput = input
+        process.standardOutput = output
+        process.standardError = Pipe()
+        try process.run()
+        defer { if process.isRunning { process.terminate() } }
+        input.fileHandleForWriting.write(Data((Self.initialize + "\n" + Self.initialized + "\n").utf8))
+        _ = try await readLine(from: output.fileHandleForReading, timeout: 10)
+
+        listener.stop() // Cue quits…
+        try await Task.sleep(for: .milliseconds(400))
+        listener = try await startListener(document, at: path) // …and comes back.
+        defer { listener.stop() }
+        try await Task.sleep(for: .milliseconds(1_500)) // The helper retries twice a second.
+
+        let list = #"{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}"#
+        input.fileHandleForWriting.write(Data((list + "\n").utf8))
+        let tools = try await readLine(from: output.fileHandleForReading, timeout: 10)
+        #expect(tools.contains("edit_element"), "the next call works without a new handshake: \(tools)")
+        #expect(!tools.contains("serverInfo"), "the replayed handshake's reply isn't passed to Claude")
+        try input.fileHandleForWriting.close()
+    }
+
+    static let initialize = #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","#
+        + #""capabilities":{},"clientInfo":{"name":"test","version":"1"}}}"#
+    static let initialized = #"{"jsonrpc":"2.0","method":"notifications/initialized"}"#
+
+    private func startListener(_ document: DeckDocument, at path: String) async throws -> MCPSocketListener {
+        let listener = MCPSocketListener(server: CueMCPServer(host: FakeHost(document)), path: path)
+        let ready = AsyncStream<MCPSocketListener.State> { continuation in
+            try? listener.start { continuation.yield($0) }
+        }
+        for await state in ready {
+            if case .listening = state { return listener }
+            if case .failed(let message) = state { throw CueMCPError.invalid(message) }
+        }
+        return listener
     }
 
     @Test func aSecondCueDoesntStealTheSocket() async throws {

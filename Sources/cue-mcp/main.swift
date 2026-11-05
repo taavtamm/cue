@@ -1,11 +1,15 @@
 // cue-mcp: the helper Claude Code or Claude Desktop starts for Cue.
 //
-// It connects to the running Cue app's Unix-domain socket and pipes bytes
-// both ways: stdin → Cue, Cue → stdout. MCP messages are newline-delimited
-// JSON on both sides, so nothing is parsed here. Exits when either side
-// closes. If Cue isn't running it opens it in the background and retries for
-// a few seconds; then it explains on stderr (never on stdout, which belongs
-// to the MCP protocol).
+// It relays newline-delimited MCP messages between Claude (stdin/stdout)
+// and the running Cue app's Unix-domain socket. If Cue isn't running when
+// Claude starts it, it opens Cue in the background and waits a few seconds.
+//
+// Cue restarting (a new build, a quit and reopen) doesn't break Claude's
+// session: the relay reconnects on its own and replays Claude's opening
+// handshake, so Cue knows the client again, without passing Cue's second
+// handshake reply back. While Cue is away, requests are answered at once
+// with an error saying so. The relay only exits when Claude closes stdin.
+// Messages to Claude only ever go to stdout; diagnostics go to stderr.
 //
 //   cue-mcp [--socket <path>]      (default ~/Library/Application Support/Cue/mcp.sock)
 //   CUE_MCP_SOCKET=<path> cue-mcp
@@ -23,72 +27,18 @@ if arguments.contains("--help") {
     exit(0)
 }
 
-let socketPath = option("--socket") ?? ProcessInfo.processInfo.environment["CUE_MCP_SOCKET"]
-    ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        .appending(path: "Cue/mcp.sock").path
+let explicitSocket = option("--socket") ?? ProcessInfo.processInfo.environment["CUE_MCP_SOCKET"]
+let socketPath = explicitSocket ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+    .appending(path: "Cue/mcp.sock").path
 
-func fail(_ message: String) -> Never {
+func note(_ message: String) {
     FileHandle.standardError.write(Data("cue-mcp: \(message)\n".utf8))
-    exit(1)
 }
 
-func connectSocket(_ path: String) -> Int32? {
-    let fd = socket(AF_UNIX, SOCK_STREAM, 0)
-    guard fd >= 0 else { return nil }
-    var address = sockaddr_un()
-    address.sun_family = sa_family_t(AF_UNIX)
-    guard path.utf8.count < MemoryLayout.size(ofValue: address.sun_path) else { fail("socket path is too long: \(path)") }
-    withUnsafeMutableBytes(of: &address.sun_path) { buffer in
-        _ = path.withCString { strncpy(buffer.baseAddress!.assumingMemoryBound(to: CChar.self), $0, buffer.count - 1) }
-    }
-    let connected = withUnsafePointer(to: &address) {
-        $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { connect(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) }
-    }
-    if connected == 0 { return fd }
-    close(fd)
-    return nil
-}
+signal(SIGPIPE, SIG_IGN) // A closed side shows up as a failed write, not a crash.
 
-/// Connects, starting Cue in the background (no window jumps forward) if needed.
-func connectToCue() -> Int32 {
-    if let fd = connectSocket(socketPath) { return fd }
-    if option("--socket") == nil, ProcessInfo.processInfo.environment["CUE_MCP_SOCKET"] == nil {
-        let open = Process()
-        open.executableURL = URL(filePath: "/usr/bin/open")
-        open.arguments = ["-g", "-b", "app.cue.Cue"]
-        try? open.run()
-        open.waitUntilExit()
-    }
-    for _ in 0..<20 {
-        usleep(250_000)
-        if let fd = connectSocket(socketPath) { return fd }
-    }
-    fail("Cue isn't running, or it isn't accepting Claude yet. Open Cue (Settings › Claude shows the status) and try again.")
+let relay = Relay(socketPath: socketPath)
+if !relay.connect(startingCue: explicitSocket == nil) {
+    note("Cue isn't running yet. Open Cue (Settings › Claude shows the status); calls will work once it's open.")
 }
-
-/// Copies everything from `input` to `output` until `input` closes.
-func pump(from input: Int32, to output: Int32) {
-    var buffer = [UInt8](repeating: 0, count: 64 * 1024)
-    while true {
-        let count = read(input, &buffer, buffer.count)
-        if count <= 0 { return }
-        var written = 0
-        while written < count {
-            let result = buffer.withUnsafeBytes { write(output, $0.baseAddress! + written, count - written) }
-            if result <= 0 { return }
-            written += result
-        }
-    }
-}
-
-signal(SIGPIPE, SIG_IGN) // A closed side ends the pump; it isn't a crash.
-let fd = connectToCue()
-let toCue = Thread {
-    pump(from: STDIN_FILENO, to: fd)
-    // Claude closed stdin, so it has gone: nothing is left to deliver.
-    shutdown(fd, SHUT_RDWR)
-    exit(0)
-}
-toCue.start()
-pump(from: fd, to: STDOUT_FILENO) // Cue closed the socket (quit): end too.
-exit(0)
+relay.run()
