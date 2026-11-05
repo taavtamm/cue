@@ -3,30 +3,59 @@ import Foundation
 
 /// One slide's XML and relationships, and its notes page.
 enum PptxSlideXML {
-    /// `rId1` is the layout, `rId2` the background picture, then pictures, then the notes page.
+    /// `rId1` is the layout, `rId2` the flattened picture, then pictures, then the notes page.
     static func slide(_ slide: ExportedSlide, scale: PptxScale) -> String {
         var id = 2
-        var shapes = picture(rid: "rId2", id: id, name: "Slide picture (flattened)",
-                             box: CGRect(x: 0, y: 0, width: slide.layout.width, height: slide.layout.height),
-                             crop: nil, opacity: 1, scale: scale)
-        for (index, item) in slide.pictures.enumerated() {
+        var shapes = ""
+        if let flat = slide.background {
+            shapes += picture(rid: "rId2", id: id, name: "Slide picture (flattened)", box: flat.box,
+                              crop: nil, opacity: 1, scale: scale)
             id += 1
-            shapes += picture(rid: "rId\(index + 3)", id: id, name: "Picture \(index + 1)", box: item.box,
-                              crop: item.crop, opacity: item.opacity, scale: scale)
         }
-        for text in slide.layout.texts {
-            id += 1
-            shapes += PptxTextXML.shape(text, id: id, scale: scale)
+        for part in parts(slide) {
+            switch part {
+            case let .shape(shape):
+                let written = PptxShapeXML.xml(shape, id: id, scale: scale)
+                shapes += written.xml
+                id += written.count
+            case let .picture(index):
+                let item = slide.pictures[index]
+                shapes += picture(rid: "rId\(index + 3)", id: id, name: "Picture \(index + 1)", box: item.box,
+                                  crop: item.crop, opacity: item.opacity, scale: scale)
+                id += 1
+            case let .text(text):
+                shapes += PptxTextXML.shape(text, id: id, scale: scale)
+                id += 1
+            }
         }
-        return PptxStaticParts.header + "<p:sld \(PptxStaticParts.ns)><p:cSld><p:spTree>\(PptxStaticParts.emptyTree)"
-            + shapes + "</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>"
+        let background = slide.layout.background.map(PptxFillXML.background) ?? ""
+        return PptxStaticParts.header + "<p:sld \(PptxStaticParts.ns)><p:cSld>\(background)<p:spTree>"
+            + PptxStaticParts.emptyTree + shapes
+            + "</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>"
+    }
+
+    enum Part {
+        case shape(ExportLayout.Shape)
+        case picture(Int)
+        case text(ExportLayout.TextBox)
+    }
+
+    /// Shapes, pictures and text boxes in paint order. Parts without an
+    /// order (older layouts) go on top in the old order: pictures, then text.
+    static func parts(_ slide: ExportedSlide) -> [Part] {
+        var ordered: [(order: Int, part: Part)] = slide.layout.shapes.map { ($0.order, .shape($0)) }
+        let last = Int.max / 2
+        for (index, item) in slide.pictures.enumerated() { ordered.append((item.order ?? last, .picture(index))) }
+        for (index, text) in slide.layout.texts.enumerated() { ordered.append((text.order ?? last + 1 + index, .text(text))) }
+        return ordered.enumerated().sorted { ($0.element.order, $0.offset) < ($1.element.order, $1.offset) }
+            .map(\.element.part)
     }
 
     static func slideRelationships(_ slide: ExportedSlide, number: Int) -> String {
-        var items: [(String, String, String)] = [
-            ("rId1", "slideLayout", "../slideLayouts/slideLayout1.xml"),
-            ("rId2", "image", "../media/slide\(number)-background.jpeg"),
-        ]
+        var items: [(String, String, String)] = [("rId1", "slideLayout", "../slideLayouts/slideLayout1.xml")]
+        if let flat = slide.background {
+            items.append(("rId2", "image", "../media/slide\(number)-background.\(flat.fileExtension)"))
+        }
         for (index, item) in slide.pictures.enumerated() {
             items.append(("rId\(index + 3)", "image", "../media/slide\(number)-picture\(index + 1).\(item.fileExtension)"))
         }

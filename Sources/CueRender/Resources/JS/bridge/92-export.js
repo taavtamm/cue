@@ -1,11 +1,12 @@
 // Export: what a slide shows, as editable parts.
 //
 // `collect` walks the slide's design canvas and returns every visible text
-// block (its box, alignment, line height and styled runs) and every plain
-// picture, in canvas pixels, and marks them. `hideMarked(true)` then hides
-// exactly those, keeping layout, so a picture of the slide without them
-// becomes the background that carries everything else (shapes, gradients,
-// SVG, canvas, live embeds).
+// block (its box, alignment, line height and styled runs), every plain
+// picture and (from `93-export-shapes.js`) every box PowerPoint can draw as
+// a shape, in canvas pixels and paint order, and marks them. `hideMarked(true)`
+// then hides exactly those, keeping layout, so a picture of the slide without
+// them carries only what PowerPoint can't draw (radial gradients, SVG,
+// canvas, live embeds…).
 
 cue.exporter = (() => {
   const HIDE_ID = 'cue-export-hide';
@@ -144,10 +145,11 @@ cue.exporter = (() => {
       blocks.add(blockOf(node, canvas));
     }
     const texts = [];
+    const parts = [];
     for (const block of blocks) {
-      if (isRotated(block)) continue;
       const frame = box(block.getBoundingClientRect(), origin, scale);
       if (frame.width < 1 || frame.height < 1 || !overlaps(frame, bounds)) continue;
+      if (isRotated(block)) { parts.push({ el: block, box: frame, held: true }); continue; }
       const paragraphs = paragraphsOf(block, canvas);
       if (paragraphs.length === 0) continue;
       const style = getComputedStyle(block);
@@ -155,6 +157,7 @@ cue.exporter = (() => {
       texts.push({ box: frame, paragraphs, align: align(style),
                    lineHeight: style.lineHeight === 'normal' ? size * 1.2 : px(style.lineHeight, size * 1.2),
                    wraps: lineCount(block) > 1 || paragraphs.length > 1 });
+      parts.push({ el: block, box: frame, item: texts[texts.length - 1] });
       block.setAttribute(MARK, 'text');
     }
 
@@ -168,10 +171,17 @@ cue.exporter = (() => {
       images.push({ box: frame, source: img.currentSrc || img.src, naturalWidth: img.naturalWidth,
                     naturalHeight: img.naturalHeight, fit: style.objectFit || 'fill',
                     opacity: Number(style.opacity) });
+      parts.push({ el: img, box: frame, item: images[images.length - 1] });
       img.setAttribute(MARK, 'image');
     }
+    const drawn = cue.exportShapes.collect(canvas, parts, {
+      toBox: (rect) => box(rect, origin, scale), bounds, overlaps, shows: (el) => shows(el, canvas),
+    });
+    parts.forEach((part, i) => { if (part.item) part.item.order = drawn.orders[i]; });
     return { canvas: { x: origin.x, y: origin.y, width: origin.width, height: origin.height },
-             width: canvasWidth, height: bounds.height, texts, images };
+             width: canvasWidth, height: bounds.height, texts, images, shapes: drawn.shapes,
+             background: drawn.background, unsupported: drawn.unsupported, keptShapes: drawn.kept,
+             needsPicture: drawn.picture };
   }
 
   /** Hides what `collect` marked (layout kept) for the background picture. */
@@ -184,7 +194,9 @@ cue.exporter = (() => {
       style.setAttribute('data-cue-owned', '');
       document.head.appendChild(style);
     }
-    style.textContent = `[${MARK}="image"]{visibility:hidden!important}`
+    const SHAPE = cue.exportShapes.SHAPE;
+    style.textContent = `[${SHAPE}]{background:none!important;border-color:transparent!important;box-shadow:none!important}`
+      + `[${MARK}="image"]{visibility:hidden!important}`
       + `[${MARK}="text"],[${MARK}="text"] *{color:transparent!important;-webkit-text-fill-color:transparent!important;`
       + `text-shadow:none!important;text-decoration-color:transparent!important}`;
   }
@@ -192,6 +204,8 @@ cue.exporter = (() => {
   function clear() {
     hideMarked(false);
     for (const el of document.querySelectorAll(`[${MARK}]`)) el.removeAttribute(MARK);
+    const SHAPE = cue.exportShapes.SHAPE;
+    for (const el of document.querySelectorAll(`[${SHAPE}]`)) el.removeAttribute(SHAPE);
   }
 
   /** An image Swift couldn't read stays in the background picture instead. */

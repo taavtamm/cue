@@ -32,12 +32,16 @@ struct PptxWriterTests {
                            "color":"rgba(106, 103, 97, 0.5)","letterSpacing":0}]]}]}
         """#
 
+    static func flat() -> ExportedPicture {
+        ExportedPicture(box: CGRect(x: 0, y: 0, width: 1920, height: 1080), data: jpeg(), fileExtension: "jpeg")
+    }
+
     static func slides() throws -> [ExportedSlide] {
         let picture = ExportedPicture(box: CGRect(x: 1200, y: 100, width: 400, height: 300), data: jpeg(),
                                       fileExtension: "jpeg", crop: PictureCrop(left: 0.1, top: 0, right: 0.1, bottom: 0), opacity: 0.8)
         return [
-            ExportedSlide(layout: try layout(slideJSON), background: jpeg(), pictures: [picture], notes: "First notes\nSecond line"),
-            ExportedSlide(layout: try layout(slideJSON), background: jpeg(), pictures: [], notes: ""),
+            ExportedSlide(layout: try layout(slideJSON), background: flat(), pictures: [picture], notes: "First notes\nSecond line"),
+            ExportedSlide(layout: try layout(slideJSON), background: flat(), pictures: [], notes: ""),
         ]
     }
 

@@ -17,6 +17,9 @@ public enum DeckExport {
         /// installed: PowerPoint may substitute them.
         public let missingFonts: [String]
         public let slides: Int
+        /// PowerPoint only: per slide, how many elements stayed in the
+        /// flattened picture because PowerPoint can't draw them.
+        public var flattened: [Int] = []
     }
 
     public typealias Progress = @MainActor (_ done: Int, _ total: Int) -> Void
@@ -36,29 +39,9 @@ public enum DeckExport {
         let title = document.fileURL.deletingPathExtension().lastPathComponent
         try PptxWriter.data(slides: slides, title: title).write(to: url, options: .atomic)
         let families = Set(slides.flatMap { $0.layout.texts.flatMap { $0.paragraphs.flatMap { $0.map(\.family) } } })
-        return Result(url: url, missingFonts: FontCheck.missing(families), slides: slides.count)
-    }
-
-    static func slide(_ index: Int, renderer: ExportRenderer, folder: DeckFolder) async throws -> ExportedSlide {
-        try await renderer.show(index)
-        let layout = try await renderer.layout(index)
-        var pictures: [ExportedPicture] = []
-        for (imageIndex, image) in layout.images.enumerated() {
-            guard let bytes = ImageData.bytes(for: image.source, folder: folder) else {
-                try await renderer.renderer.keepInBackground(imageAt: imageIndex)
-                continue
-            }
-            let placement = ImageData.placement(image)
-            pictures.append(ExportedPicture(box: placement.box, data: bytes.data, fileExtension: bytes.fileExtension,
-                                            crop: placement.crop, opacity: image.opacity))
-        }
-        try await renderer.renderer.hideExportParts(true)
-        let picture = try await renderer.renderer.canvasPicture(layout.canvas, pixelWidth: layout.width)
-        try await renderer.renderer.hideExportParts(false)
-        await renderer.renderer.clearExportMarks()
-        guard let background = ImageData.jpeg(picture) else { throw ExportError.couldNotEncode }
-        let notes = renderer.document.structure.slides[index].notes
-        return ExportedSlide(layout: layout, background: background, pictures: pictures, notes: notes)
+        var result = Result(url: url, missingFonts: FontCheck.missing(families), slides: slides.count)
+        result.flattened = slides.map { $0.layout.unsupported + $0.layout.keptShapes }
+        return result
     }
 
     /// A PDF with one page per slide, at the slide's aspect.

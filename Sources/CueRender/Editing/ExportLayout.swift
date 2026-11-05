@@ -7,6 +7,13 @@ import Foundation
 public struct ExportLayout: Sendable, Equatable, Decodable {
     public struct Box: Sendable, Equatable, Decodable {
         public let x, y, width, height: Double
+        public init(x: Double, y: Double, width: Double, height: Double) {
+            self.x = x
+            self.y = y
+            self.width = width
+            self.height = height
+        }
+
         public var rect: CGRect { CGRect(x: x, y: y, width: width, height: height) }
     }
 
@@ -36,6 +43,8 @@ public struct ExportLayout: Sendable, Equatable, Decodable {
         public let lineHeight: Double
         /// It runs over more than one line, so it should wrap at its width.
         public let wraps: Bool
+        /// Paint order among the slide's texts, pictures and shapes.
+        public var order: Int?
     }
 
     public struct Image: Sendable, Equatable, Decodable {
@@ -46,6 +55,7 @@ public struct ExportLayout: Sendable, Equatable, Decodable {
         /// CSS object-fit: fill, cover, contain, none, scale-down.
         public let fit: String
         public let opacity: Double
+        public var order: Int?
     }
 
     /// Where the canvas is in the page, in CSS pixels (for snapshots).
@@ -53,4 +63,32 @@ public struct ExportLayout: Sendable, Equatable, Decodable {
     public let width, height: Double
     public let texts: [TextBox]
     public let images: [Image]
+    /// Boxes PowerPoint draws itself, from `93-export-shapes.js`.
+    public var shapes: [Shape] = []
+    /// The slide's flat fill, or nil when only the picture can show it.
+    public var background: Fill?
+    /// Elements only a picture can show (radial gradients, SVG, embeds…).
+    public var unsupported = 0
+    /// Shapes kept in the picture because something there paints over them.
+    public var keptShapes = 0
+    /// Something on the slide needs the flattened picture.
+    public var needsPicture = true
+
+    enum CodingKeys: String, CodingKey {
+        case canvas, width, height, texts, images, shapes, background, unsupported, keptShapes, needsPicture
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        canvas = try c.decode(Box.self, forKey: .canvas)
+        width = try c.decode(Double.self, forKey: .width)
+        height = try c.decode(Double.self, forKey: .height)
+        texts = try c.decode([TextBox].self, forKey: .texts)
+        images = try c.decode([Image].self, forKey: .images)
+        shapes = try c.decodeIfPresent([Shape].self, forKey: .shapes) ?? []
+        background = try c.decodeIfPresent(Fill.self, forKey: .background)
+        unsupported = try c.decodeIfPresent(Int.self, forKey: .unsupported) ?? 0
+        keptShapes = try c.decodeIfPresent(Int.self, forKey: .keptShapes) ?? 0
+        needsPicture = try c.decodeIfPresent(Bool.self, forKey: .needsPicture) ?? true
+    }
 }

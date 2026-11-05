@@ -39,9 +39,15 @@ extension SlideRenderer {
         _ = try? await callInBridge("window.__cue.exporter.clear(); return true")
     }
 
-    /// A picture of the canvas `pixelWidth` pixels wide. `canvas` is in CSS pixels.
-    public func canvasPicture(_ canvas: ExportLayout.Box, pixelWidth: Double) async throws -> CGImage {
+    /// A picture of the canvas `pixelWidth` pixels wide. `canvas` is in CSS
+    /// pixels. `seeThrough` leaves what the page doesn't paint transparent.
+    public func canvasPicture(_ canvas: ExportLayout.Box, pixelWidth: Double, seeThrough: Bool = false) async throws -> CGImage {
         guard let webView, isReady else { throw SlideRendererError.notReady }
+        if seeThrough {
+            webView.setValue(false, forKey: "drawsBackground")
+            await waitForPaint()
+        }
+        defer { if seeThrough { webView.setValue(true, forKey: "drawsBackground") } }
         let configuration = WKSnapshotConfiguration()
         configuration.rect = canvas.rect // Web view coordinates are CSS pixels, top-left.
         configuration.afterScreenUpdates = true

@@ -6,13 +6,14 @@ import Foundation
 /// else, and its speaker notes.
 public struct ExportedSlide: Sendable {
     public var layout: ExportLayout
-    /// The slide without its text boxes and pictures (JPEG): shapes,
-    /// gradients, SVG, canvas and live embeds, frozen.
-    public var background: Data
+    /// What PowerPoint can't draw (radial gradients, SVG, canvas, live
+    /// embeds…), frozen in one picture under every shape, text box and
+    /// picture; nil when there is nothing like that on the slide.
+    public var background: ExportedPicture?
     public var pictures: [ExportedPicture]
     public var notes: String
 
-    public init(layout: ExportLayout, background: Data, pictures: [ExportedPicture], notes: String) {
+    public init(layout: ExportLayout, background: ExportedPicture?, pictures: [ExportedPicture], notes: String) {
         self.layout = layout
         self.background = background
         self.pictures = pictures
@@ -30,14 +31,17 @@ public struct ExportedPicture: Sendable {
     /// What's cut from each side (CSS object-fit: cover).
     public var crop: PictureCrop?
     public var opacity: Double
+    /// Paint order among the slide's shapes and text (`ExportLayout.Image.order`).
+    public var order: Int?
 
     public init(box: CGRect, data: Data, fileExtension: String,
-                crop: PictureCrop? = nil, opacity: Double = 1) {
+                crop: PictureCrop? = nil, opacity: Double = 1, order: Int? = nil) {
         self.box = box
         self.data = data
         self.fileExtension = fileExtension
         self.crop = crop
         self.opacity = opacity
+        self.order = order
     }
 }
 

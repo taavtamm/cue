@@ -1,9 +1,10 @@
 import Foundation
 
-/// Writes exported slides as an editable .pptx: per slide, a flattened
-/// picture of everything that isn't text or a plain image, then the
-/// pictures, then real text boxes with the deck's fonts, sizes and colours,
-/// and the speaker notes. Animations and live content are frozen.
+/// Writes exported slides as an editable .pptx: per slide, the background
+/// fill, a flattened picture of what PowerPoint can't draw, then shapes,
+/// pictures and real text boxes (with the deck's fonts, sizes and colours)
+/// in the slide's paint order, and the speaker notes. Animations and live
+/// content are frozen.
 public enum PptxWriter {
     public static func data(slides: [ExportedSlide], title: String) -> Data {
         let canvasWidth = slides.first?.layout.width ?? 1920
@@ -36,7 +37,9 @@ public enum PptxWriter {
             zip.add("ppt/slides/_rels/slide\(number).xml.rels", PptxSlideXML.slideRelationships(slide, number: number))
             zip.add("ppt/notesSlides/notesSlide\(number).xml", PptxSlideXML.notes(slide.notes))
             zip.add("ppt/notesSlides/_rels/notesSlide\(number).xml.rels", PptxSlideXML.notesRelationships(number: number))
-            zip.add("ppt/media/slide\(number)-background.jpeg", slide.background, compress: false)
+            if let background = slide.background {
+                zip.add("ppt/media/slide\(number)-background.\(background.fileExtension)", background.data, compress: false)
+            }
             for (pictureIndex, picture) in slide.pictures.enumerated() {
                 zip.add("ppt/media/slide\(number)-picture\(pictureIndex + 1).\(picture.fileExtension)", picture.data,
                         compress: false)

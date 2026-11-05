@@ -23,6 +23,8 @@ struct LiveExportTests {
         let result = try await DeckExport.powerPoint(document, to: url) { done, _ in steps.append(done) }
         #expect(result.slides == 12)
         #expect(steps.last == 12)
+        #expect(result.flattened.count == 12)
+        #expect(result.flattened[2] > 0, "slide 3's live embed and logo stay in its picture")
         #expect(try Data(contentsOf: document.fileURL) == Data(contentsOf: ExportFixtures.repoRoot.appending(path: "fixtures/demo-deck.html")),
                 "the deck isn't changed")
 
@@ -33,7 +35,6 @@ struct LiveExportTests {
         let first = String(decoding: try archive.data(for: "ppt/slides/slide1.xml"), as: UTF8.self)
         #expect(first.contains(">Plans that ") && first.contains(">hold up.<"), "slide 1's headline is a real text box")
         #expect(first.contains(#"<a:srgbClr val="6A6761">"#), "and keeps its grey")
-        #expect(archive.entry("ppt/media/slide1-background.jpeg") != nil)
 
         let prepared = try await ImportService().prepare(url)
         let back = try DeckDocument(contentsOf: prepared.htmlURL)

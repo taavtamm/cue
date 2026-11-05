@@ -78,10 +78,23 @@ struct ExportResultView: View {
     private var detail: String? {
         switch result {
         case .failure(let error): return error.localizedDescription
-        case .success(let export) where !export.missingFonts.isEmpty:
-            return "Not installed on this Mac, so PowerPoint may substitute: " + export.missingFonts.joined(separator: ", ")
-        case .success: return nil
+        case .success(let export):
+            let notes = [fontsNote(export), flattenedNote(export)].compactMap { $0 }
+            return notes.isEmpty ? nil : notes.joined(separator: "\n")
         }
+    }
+
+    private func fontsNote(_ export: DeckExport.Result) -> String? {
+        guard !export.missingFonts.isEmpty else { return nil }
+        return "Not installed on this Mac, so PowerPoint may substitute: " + export.missingFonts.joined(separator: ", ")
+    }
+
+    /// Which slides keep parts PowerPoint can't draw (SVG, embeds, radial gradients…) as a picture.
+    private func flattenedNote(_ export: DeckExport.Result) -> String? {
+        let slides = export.flattened.enumerated().filter { $0.element > 0 }
+        guard !slides.isEmpty else { return nil }
+        let list = slides.map { "slide \($0.offset + 1): \($0.element)" }.joined(separator: ", ")
+        return "Elements kept in a picture because PowerPoint can't draw them (" + list + ")"
     }
 
     private var name: String {
