@@ -34,6 +34,11 @@ public enum EditOperation: Sendable, Equatable, Codable {
     /// Replaces an element's content with formatted text (bold, italic,
     /// links, line breaks). The markup is sanitised first: see `RichTextSanitizer`.
     case setInnerHTML(ElementPath, String)
+    /// Replaces a whole slide's markup (the slide element, start to end tag).
+    case replaceSlide(Int, html: String)
+    /// Raw patches on the current source. Used to revert one change set
+    /// after later edits (`ChangeSetLedger`); one undo step like any other.
+    case patches(SourceEdit)
 
     /// Edits with the same key, made in quick succession, undo as one.
     var coalescingKey: String? {

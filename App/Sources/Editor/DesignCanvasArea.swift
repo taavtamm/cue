@@ -26,7 +26,8 @@ struct DesignCanvasArea: View {
                     .padding(.top, 8)
                     .onTapGesture { session.lastError = nil }
             }
-            EditorAskBar(session: session)
+            ClaudeChangeBanner(session: session) // Claude's latest edit: Accept or Undo.
+            EditorAskBar(session: session, connection: .shared)
                 .frame(height: 84)
             SlideBottomPanel(session: session)
                 .frame(height: 190)

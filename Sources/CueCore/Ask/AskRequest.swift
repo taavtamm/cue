@@ -21,6 +21,8 @@ public struct AskRequest: Sendable, Equatable, Codable, Identifiable {
     public let selection: ElementPath?
     public let createdAt: Date
     public internal(set) var status: Status
+    /// What Claude said it did, once done.
+    public internal(set) var summary: String?
 
     public init(text: String, slide: Int, selection: ElementPath?, createdAt: Date = Date()) {
         id = UUID()

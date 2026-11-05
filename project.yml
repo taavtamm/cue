@@ -30,6 +30,14 @@ targets:
         product: CueEditor
       - package: CuePackage
         product: CueImport
+      - package: CuePackage
+        product: CueMCP
+      # The helper Claude starts (`claude mcp add cue -- …/Contents/MacOS/cue-mcp`).
+      - target: cue-mcp
+        embed: true
+        codeSign: true
+        copy:
+          destination: executables
     entitlements:
       path: App/Cue.entitlements
       properties:
@@ -67,3 +75,13 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: app.cue.Cue
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: NO
+  # Pipes Claude's stdio to Cue's MCP socket. Foundation only; same source as the package's cue-mcp.
+  cue-mcp:
+    type: tool
+    platform: macOS
+    sources:
+      - Sources/cue-mcp
+    settings:
+      base:
+        PRODUCT_NAME: cue-mcp
+        ENABLE_HARDENED_RUNTIME: YES

@@ -53,11 +53,18 @@ final class DeckWindowController: NSWindowController, NSWindowDelegate {
     private func makeEditor() -> some View {
         EditorView(
             session: session, thumbnails: thumbnails, actions: makeActions(),
-            networkBanner: AnyView(NetworkAccessBanner(access: network))
+            networkBanner: AnyView(VStack(spacing: 0) {
+                NetworkAccessBanner(access: network)
+                ClaudeApprovalBanner(connection: .shared)
+            })
         )
     }
 
     private func wireUp() {
+        session.onAsk = { [weak self] request in // The Ask bar: hand it to Claude.
+            guard let self else { return }
+            ClaudeConnection.shared.send(request, from: self.session)
+        }
         session.canvas.onSandboxEvent = { [weak self] event in self?.network.handle(event) }
         network.onAllowed = { [weak self] in Task { await self?.load() } } // Reload with the newly allowed hosts.
         session.onDocumentChanged = { [weak self] result in

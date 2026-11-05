@@ -31,8 +31,12 @@ public final class AskRequestQueue {
         return requests[index]
     }
 
-    public func mark(_ id: UUID, _ status: AskRequest.Status) {
+    public func mark(_ id: UUID, _ status: AskRequest.Status, summary: String? = nil) {
         guard let index = requests.firstIndex(where: { $0.id == id }) else { return }
         requests[index].status = status
+        if let summary { requests[index].summary = summary }
     }
+
+    /// The most recent request, for the Ask bar's status line.
+    public var latest: AskRequest? { requests.last }
 }

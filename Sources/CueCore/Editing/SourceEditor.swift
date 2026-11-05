@@ -49,6 +49,10 @@ struct SourceEditor {
             return try deleteElement(element(path))
         case .setInnerHTML(let path, let html):
             return (try setInnerHTML(of: element(path), to: html), .innerHTML(path))
+        case .replaceSlide(let index, let html):
+            return (try replaceSlide(index, with: html), .reload)
+        case .patches(let edit):
+            return (edit, .reload)
         }
     }
 

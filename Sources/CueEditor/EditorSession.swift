@@ -23,6 +23,10 @@ public final class EditorSession {
     public internal(set) var interactiveEmbed: CGRect?
     public internal(set) var inlineEdit: InlineEditState?
     public let askQueue: AskRequestQueue
+    /// Claude's change sets in this window.
+    public let claudeChanges = ClaudeChanges()
+    /// Called when the user sends something from the Ask bar (the app hands it to Claude).
+    @ObservationIgnored public var onAsk: ((AskRequest) -> Void)?
     /// The real slide, as an editor surface.
     public let canvas = SlideRenderer(surface: .editor)
     /// How far the canvas is zoomed in (per window, not saved).
@@ -115,7 +119,9 @@ public final class EditorSession {
     /// Queues a request for Claude (served over MCP in milestone 7).
     @discardableResult
     public func ask(_ text: String) -> AskRequest? {
-        askQueue.enqueue(text, slide: slide, selection: selection?.path)
+        guard let request = askQueue.enqueue(text, slide: slide, selection: selection?.path) else { return nil }
+        onAsk?(request)
+        return request
     }
 
     /// Requests typed here that no Claude session has finished yet.

@@ -27,6 +27,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.mainMenu = MainMenu.make()
+        startClaude()
         if let url = LaunchOptions.deckToOpen {
             open(url, presentAt: LaunchOptions.presentImmediately ? LaunchOptions.startSlide : nil)
             if let deck = deckWindows.first {
@@ -47,6 +48,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+
+    func applicationWillTerminate(_ notification: Notification) { ClaudeConnection.shared.stop() }
+
+    /// Lets the user's Claude connect (MCP). Claude works on the front-most deck.
+    private func startClaude() {
+        ClaudeConnection.shared.frontSession = { [weak self] in
+            guard let decks = self?.deckWindows else { return nil }
+            let key = decks.first { $0.window?.isKeyWindow == true } ?? decks.first { $0.window?.isMainWindow == true }
+            return (key ?? decks.last)?.session
+        }
+        ClaudeConnection.shared.start()
+    }
 
     /// Quitting with unsaved decks asks first, like closing their windows:
     /// one deck gets its own Save / Don't Save; several get Review Changes.

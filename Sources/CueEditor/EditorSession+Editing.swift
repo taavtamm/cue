@@ -43,6 +43,7 @@ extension EditorSession {
     public func revert() async throws {
         let url = document.fileURL
         document = try await Task.detached { try DeckDocument(contentsOf: url) }.value
+        claudeChanges.reset()
         lastEditedAt = nil
         slide = min(slide, max(0, slideCount - 1))
         selection = nil
@@ -95,6 +96,7 @@ extension EditorSession {
                 return (copy, result)
             }.value
             document = next
+            claudeChanges.note(result.edit) // Keeps Claude's change sets undoable on their own.
             lastEditedAt = Date()
             lastError = nil
             await catchUp(with: result)

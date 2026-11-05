@@ -27,6 +27,9 @@ public final class CueSettings {
     /// Font for new text boxes and new decks.
     public var defaultFontFamily: String { didSet { store(defaultFontFamily, .fontFamily) } }
     public var defaultFontSize: Double { didSet { clampAndStore(\.defaultFontSize, 8...400, .fontSize) } }
+    /// Keep Claude's edits without asking (Settings › Claude). Off by default:
+    /// every edit waits for Accept or Undo.
+    public var autoAcceptClaudeEdits: Bool { didSet { store(autoAcceptClaudeEdits, .autoAcceptClaude) } }
 
     @ObservationIgnored private let defaults: UserDefaults
 
@@ -39,6 +42,7 @@ public final class CueSettings {
         keepsAnimationsInSync = defaults.object(forKey: Key.keepsAnimationsInSync.rawValue) as? Bool ?? true
         defaultFontFamily = defaults.string(forKey: Key.fontFamily.rawValue) ?? Self.systemFont
         defaultFontSize = defaults.object(forKey: Key.fontSize.rawValue) as? Double ?? Defaults.fontSize
+        autoAcceptClaudeEdits = defaults.bool(forKey: Key.autoAcceptClaude.rawValue)
     }
 
     /// Back to Cue's defaults (the save folder is cleared too).
@@ -50,6 +54,7 @@ public final class CueSettings {
         keepsAnimationsInSync = true
         defaultFontFamily = Self.systemFont
         defaultFontSize = Defaults.fontSize
+        autoAcceptClaudeEdits = false
     }
 
     /// UserDefaults keys. `keepsAnimationsInSync` keeps the key the Displays
@@ -62,6 +67,7 @@ public final class CueSettings {
         case keepsAnimationsInSync = "keepsAnimationsInSync"
         case fontFamily = "cue.defaultFontFamily"
         case fontSize = "cue.defaultFontSize"
+        case autoAcceptClaude = "cue.autoAcceptClaudeEdits"
     }
 
     private func store(_ value: Any?, _ key: Key) {
