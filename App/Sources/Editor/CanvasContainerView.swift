@@ -65,14 +65,28 @@ final class CanvasContainerView: NSView {
         applyZoom(session.zoom.scale, anchor: nil)
     }
 
+    /// SwiftUI resizes this view (e.g. when a banner slides in above it)
+    /// without AppKit always asking it to lay out again, which left the
+    /// slide at its old size, pushed down and cut off. Re-fit on every resize.
+    override func setFrameSize(_ newSize: NSSize) {
+        let changed = newSize != frame.size
+        super.setFrameSize(newSize)
+        if changed {
+            needsLayout = true
+            layoutSubtreeIfNeeded()
+        }
+    }
+
     /// Sizes the content for `scale`, keeping `anchor` (in content
     /// coordinates) under the same spot, or the centre when nil.
     func applyZoom(_ scale: CGFloat, anchor: CGPoint?) {
         let old = content.frame.width / max(1, scrollView.contentSize.width)
         let visible = scrollView.contentView.bounds
         appliedZoom = scale
-        let size = CGSize(width: (scrollView.contentSize.width * scale).rounded(),
-                          height: (scrollView.contentSize.height * scale).rounded())
+        // The scroll view's own size, read after it was just set to our bounds.
+        // Rounded down: a content half a point larger than the view scrolls.
+        let size = CGSize(width: (scrollView.frame.width * scale).rounded(.down),
+                          height: (scrollView.frame.height * scale).rounded(.down))
         let point = anchor ?? CGPoint(x: visible.midX, y: visible.midY)
         let origin = CanvasZoom.anchoredOrigin(anchor: point, visibleOrigin: visible.origin,
                                                old: old > 0 ? old : 1, new: scale)
