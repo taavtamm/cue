@@ -27,12 +27,34 @@ public protocol DeckHost: Sendable {
     func toolDidStart(_ activity: ToolActivity) async
     /// It finished; `failed` when it returned an error.
     func toolDidFinish(_ activity: ToolActivity, failed: Bool) async
+
+    // Decks: Claude can make, open, switch between and save presentations.
+    /// Open decks first (the target marked), then recently opened ones.
+    func decks() async -> [DeckSummary]
+    /// Writes a new deck (`html`, or Cue's blank deck) at `url`, opens it and makes it the target.
+    func createDeck(at url: URL, title: String, html: String?) async throws -> DeckSummary
+    /// Opens a deck (HTML, or a presentation Cue imports) and makes it the target.
+    func openDeck(_ url: URL) async throws -> DeckSummary
+    /// Saves the target deck to its own file.
+    func saveDeck() async throws -> DeckSummary
+    /// Where new decks go when Claude doesn't say.
+    func newDeckFolder() async -> URL
+    /// New decks must be inside this folder (the user's home folder).
+    func deckRoot() async -> URL
 }
 
 extension DeckHost {
     public func fetchImage(_ url: URL) async throws -> Data { try await ImageDownloader().fetch(url) }
     public func toolDidStart(_ activity: ToolActivity) async {}
     public func toolDidFinish(_ activity: ToolActivity, failed: Bool) async {}
+    public func decks() async -> [DeckSummary] { [] }
+    public func createDeck(at url: URL, title: String, html: String?) async throws -> DeckSummary {
+        throw CueMCPError.invalid("This Cue can't create decks.")
+    }
+    public func openDeck(_ url: URL) async throws -> DeckSummary { throw CueMCPError.invalid("This Cue can't open decks.") }
+    public func saveDeck() async throws -> DeckSummary { throw CueMCPError.invalid("This Cue can't save decks.") }
+    public func newDeckFolder() async -> URL { NewDeckLocation.defaultFolder(saveFolder: nil) }
+    public func deckRoot() async -> URL { FileManager.default.homeDirectoryForCurrentUser }
 }
 
 /// The selection, as Claude sees it in `get_selection`.

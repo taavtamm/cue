@@ -9,7 +9,8 @@ import CueImport
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private static let shared = AppDelegate()
-    private var deckWindows: [DeckWindowController] = []
+    /// Readable by ClaudeDecks, which lets Claude list, open and save decks.
+    private(set) var deckWindows: [DeckWindowController] = []
     private let imports = ImportCoordinator()
     private lazy var welcome = WelcomeWindowController(actions: WelcomeActions(
         newPresentation: { [weak self] in self?.newDocument(nil) },
@@ -55,6 +56,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func startClaude() {
         ClaudeConnection.shared.frontSession = { [weak self] in
             guard let decks = self?.deckWindows else { return nil }
+            // The deck Claude created or opened, while it's open; else the front-most one.
+            if let target = ClaudeConnection.shared.target, let deck = decks.first(where: { $0.deck.fileURL == target }) {
+                return deck.session
+            }
             let key = decks.first { $0.window?.isKeyWindow == true } ?? decks.first { $0.window?.isMainWindow == true }
             return (key ?? decks.last)?.session
         }

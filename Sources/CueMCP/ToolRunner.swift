@@ -35,6 +35,7 @@ struct ToolRunner: Sendable {
             try await host.mailbox.complete(try args.requiredString("id"), summary: args.string("summary"))
             return text("Marked \(try args.requiredString("id")) done.")
         default:
+            if let result = try await deck(name, args) { return result }
             if let result = try await design(name, args) { return result }
             return try await edit(name, args)
         }

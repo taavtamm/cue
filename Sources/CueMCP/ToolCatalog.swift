@@ -4,7 +4,7 @@ import MCP
 /// that changes the deck is one change: applied and kept at once (not saved
 /// until the user saves), with a change-set id that `revert_change` undoes.
 enum ToolCatalog {
-    static let tools: [Tool] = reading + slides + elements + inserting + DesignTools.tools + changes + asking
+    static let tools: [Tool] = DeckTools.tools + reading + slides + elements + inserting + DesignTools.tools + changes + asking
 
     static let reading: [Tool] = [
         tool("get_outline", "The open deck: file, canvas size, and every slide's number, id, label, notes, build count "

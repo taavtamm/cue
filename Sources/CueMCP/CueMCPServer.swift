@@ -13,6 +13,10 @@ public final class CueMCPServer: Sendable {
         anything a web page can: text, colours, fonts, images, layouts, complete redesigns. Slide numbers are \
         1-based. Start with get_outline (and get_selection to see what the user is looking at).
 
+        To make a new presentation, call create_deck (with the whole deck as `html`, or start blank and build it \
+        up); it opens in Cue and becomes the deck every tool works on. list_decks and open_deck switch decks. \
+        save_deck writes the target deck to its file; only use it when the user asks for a save.
+
         Every tool call that changes the deck is one change: applied and kept immediately (not saved to the file \
         until the user saves), it returns a change-set id, and the user or you can undo it with revert_change. \
         accept_change only matters when the user has turned on reviewing.

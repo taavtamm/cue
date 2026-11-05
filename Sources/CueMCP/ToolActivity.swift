@@ -31,7 +31,7 @@ public struct ToolActivity: Sendable, Equatable {
         switch tool {
         case "render_slide", "render_deck": .rendering
         case "next_request": .waiting
-        case "complete_request", "list_changes": .reading
+        case "complete_request", "list_changes", "list_decks", "open_deck": .reading
         default: tool.hasPrefix("get_") ? .reading : .editing
         }
     }

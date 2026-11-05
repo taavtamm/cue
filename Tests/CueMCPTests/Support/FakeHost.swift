@@ -61,4 +61,39 @@ actor FakeHost: DeckHost {
         activityLog.append("finish \(activity.tool)\(failed ? " failed" : "")")
     }
     func approval(for client: String) async -> ClientApproval.Decision { decision }
+
+    // Decks, in a temporary folder that stands in for the user's home.
+    let root = FileManager.default.temporaryDirectory.appending(path: "cue-fake-home-\(UUID().uuidString)")
+    private(set) var targetURL: URL?
+    private(set) var saved = 0
+
+    func deckRoot() async -> URL { root }
+    func newDeckFolder() async -> URL { root.appending(path: "Documents/Cue Decks") }
+
+    func decks() async -> [DeckSummary] { [summary(document)] }
+
+    func createDeck(at url: URL, title: String, html: String?) async throws -> DeckSummary {
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data((html ?? BlankDeckTemplate.html(title: title)).utf8).write(to: url)
+        return try await openDeck(url)
+    }
+
+    func openDeck(_ url: URL) async throws -> DeckSummary {
+        let opened = try DeckDocument(contentsOf: url)
+        document = opened
+        targetURL = url
+        ledger = ChangeSetLedger()
+        return summary(opened)
+    }
+
+    func saveDeck() async throws -> DeckSummary {
+        try document.save()
+        saved += 1
+        return summary(document)
+    }
+
+    private func summary(_ document: DeckDocument) -> DeckSummary {
+        DeckSummary(path: document.fileURL.path, title: document.fileURL.deletingPathExtension().lastPathComponent,
+                    slides: document.structure.slides.count, isOpen: true, isTarget: true, hasUnsavedChanges: document.isDirty)
+    }
 }

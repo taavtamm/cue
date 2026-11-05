@@ -19,6 +19,9 @@ final class ClaudeConnection {
     let approvals = ClientApproval()
     /// What the agent is doing right now, for the Ask bar.
     let activity = ClaudeActivity()
+    /// The deck Claude created or opened last: its tools keep working on it
+    /// even when the user clicks another window.
+    var target: URL?
 
     /// The editor Claude works on: set by the app (front-most deck window).
     @ObservationIgnored var frontSession: () -> EditorSession? = { nil }
