@@ -33,7 +33,9 @@ extension EditorSession {
         }
         if autoAccept { try claudeChanges.accept(change.id) }
         if let slide, slide != self.slide, structure.slides.indices.contains(slide) { showSlide(slide) }
-        return change
+        // The ledger's copy: after an auto-accept its status is "accepted",
+        // so Claude isn't told the edit is waiting for review.
+        return claudeChanges.all.first { $0.id == change.id } ?? change
     }
 
     public func acceptClaudeChange(_ id: String) throws {
