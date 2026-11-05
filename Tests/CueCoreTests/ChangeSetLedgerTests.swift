@@ -81,7 +81,13 @@ struct ChangeSetLedgerTests {
         try ledger.accept(change.id)
         #expect(ledger.change(change.id)?.status == .accepted)
         #expect(ledger.pending.isEmpty)
-        #expect(throws: ChangeSetError.self) { try ledger.revertEdit(for: change.id) }
+        // Kept changes can still be undone on their own.
+        let undo = try ledger.revertEdit(for: change.id)
+        _ = try document.apply(.patches(undo))
+        ledger.markReverted(change.id)
+        #expect(document.structure.slides[0].notes != "New notes")
+        #expect(ledger.change(change.id)?.status == .reverted)
+        #expect(throws: ChangeSetError.self) { try ledger.revertEdit(for: change.id) } // Not twice.
     }
 
     @Test func replacingASlideNeedsTheSameKindOfElement() throws {

@@ -18,6 +18,10 @@ public final class ClaudeChanges {
     public var pending: [ChangeSet] { ledger.pending }
     /// The change set the canvas banner shows.
     public var latestPending: ChangeSet? { ledger.pending.last }
+    /// The newest change that can still be undone on its own (kept or waiting).
+    public var latestUndoable: ChangeSet? {
+        ledger.changes.last { $0.status == .pending || $0.status == .accepted }
+    }
 
     func note(_ edit: SourceEdit) {
         guard !isRecording else { return }

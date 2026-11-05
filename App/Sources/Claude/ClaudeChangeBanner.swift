@@ -3,15 +3,21 @@ import CueEditor
 import CueUI
 import SwiftUI
 
-/// Claude's latest pending change on the canvas: what it did, a compact
-/// before/after, and Accept / Undo. "All changes" lists the session's change sets.
+/// Claude's latest change on the canvas. Normally a short notice, "Claude
+/// changed … · Undo", that fades after a few seconds: the edit is already
+/// kept. With reviewing on (Settings › Claude) a waiting change shows its
+/// before/after with Accept and Undo until the user picks one.
 struct ClaudeChangeBanner: View {
     let session: EditorSession
     @State private var showsList = false
     @State private var error: String?
+    /// The kept change whose notice has faded.
+    @State private var faded: String?
+
+    static let noticeSeconds = 8
 
     var body: some View {
-        if let change = session.claudeChanges.latestPending {
+        if let change = session.claudeChanges.latestUndoable, change.status == .pending || change.id != faded {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 10) {
                     Image(systemName: "sparkles").foregroundStyle(CueTheme.violet)
@@ -24,9 +30,11 @@ struct ClaudeChangeBanner: View {
                         .buttonStyle(.cue(height: 28))
                         .popover(isPresented: $showsList) { ClaudeChangeList(session: session) }
                     Button("Undo") { revert(change) }.buttonStyle(.cue(height: 28))
-                    Button("Accept") { accept(change) }.buttonStyle(.cue(.primary, height: 28))
+                    if change.status == .pending {
+                        Button("Accept") { accept(change) }.buttonStyle(.cue(.primary, height: 28))
+                    }
                 }
-                ChangeDiff(excerpt: change.excerpts.first)
+                if change.status == .pending { ChangeDiff(excerpt: change.excerpts.first) }
                 if let error { Text(error).font(.system(size: 11)).foregroundStyle(CueTheme.destructiveText) }
             }
             .padding(12)
@@ -34,6 +42,7 @@ struct ClaudeChangeBanner: View {
             .padding(.horizontal, 24)
             .padding(.top, 8)
             .transition(.opacity)
+            .task(id: change.id) { await fadeKept(change) }
         }
     }
 
@@ -41,6 +50,13 @@ struct ClaudeChangeBanner: View {
         let slide = change.slide.map { "Slide \($0 + 1) · " } ?? ""
         let more = session.claudeChanges.pending.count - 1
         return slide + "from \(change.client)" + (more > 0 ? " · \(more) more waiting" : "")
+    }
+
+    /// A kept change only needs a moment's notice; Undo stays in All changes and ⌘Z.
+    private func fadeKept(_ change: ChangeSet) async {
+        guard change.status == .accepted else { return }
+        try? await Task.sleep(for: .seconds(Self.noticeSeconds))
+        withAnimation(.easeOut(duration: 0.3)) { faded = change.id }
     }
 
     private func accept(_ change: ChangeSet) {
@@ -91,7 +107,11 @@ struct ClaudeChangeList: View {
                     HStack {
                         Text(change.summary).font(.system(size: 12, weight: .semibold)).lineLimit(1)
                         Spacer()
-                        Pill(change.status.rawValue.capitalized, .status(dot: color(change.status)))
+                        if change.status == .pending || change.status == .accepted {
+                            Button("Undo") { Task { try? await session.revertClaudeChange(change.id) } }
+                                .buttonStyle(.cue(height: 24))
+                        }
+                        Pill(label(change.status), .status(dot: color(change.status)))
                     }
                     ChangeDiff(excerpt: change.excerpts.first)
                 }
@@ -100,6 +120,15 @@ struct ClaudeChangeList: View {
         .padding(14)
         .frame(width: 380)
         .foregroundStyle(CueTheme.text)
+    }
+
+    private func label(_ status: ChangeSet.Status) -> String {
+        switch status {
+        case .pending: "Waiting"
+        case .accepted: "Kept"
+        case .reverted: "Undone"
+        case .superseded: "Edited since"
+        }
     }
 
     private func color(_ status: ChangeSet.Status) -> Color {

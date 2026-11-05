@@ -42,7 +42,8 @@ public final class CueSettings {
         keepsAnimationsInSync = defaults.object(forKey: Key.keepsAnimationsInSync.rawValue) as? Bool ?? true
         defaultFontFamily = defaults.string(forKey: Key.fontFamily.rawValue) ?? Self.systemFont
         defaultFontSize = defaults.object(forKey: Key.fontSize.rawValue) as? Double ?? Defaults.fontSize
-        autoAcceptClaudeEdits = defaults.bool(forKey: Key.autoAcceptClaude.rawValue)
+        // On by default: Claude's edits are kept at once, each undoable on its own.
+        autoAcceptClaudeEdits = defaults.object(forKey: Key.autoAcceptClaude.rawValue) as? Bool ?? true
     }
 
     /// Back to Cue's defaults (the save folder is cleared too).
@@ -54,7 +55,7 @@ public final class CueSettings {
         keepsAnimationsInSync = true
         defaultFontFamily = Self.systemFont
         defaultFontSize = Defaults.fontSize
-        autoAcceptClaudeEdits = false
+        autoAcceptClaudeEdits = true
     }
 
     /// UserDefaults keys. `keepsAnimationsInSync` keeps the key the Displays

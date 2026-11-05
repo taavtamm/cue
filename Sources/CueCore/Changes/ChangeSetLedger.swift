@@ -53,7 +53,10 @@ public struct ChangeSetLedger: Sendable {
     /// pass it to `note(_:)` like any edit, then call `markReverted`.
     public func revertEdit(for id: String) throws -> SourceEdit {
         guard let change = change(id) else { throw ChangeSetError.unknown(id) }
-        guard change.status == .pending else { throw ChangeSetError.notPending(id, change.status) }
+        // Kept changes can be undone too, until later edits touch the same text.
+        guard change.status == .pending || change.status == .accepted else {
+            throw ChangeSetError.notPending(id, change.status)
+        }
         return change.inverse
     }
 

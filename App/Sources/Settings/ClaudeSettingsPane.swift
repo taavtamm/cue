@@ -36,8 +36,11 @@ struct ClaudeSettingsPane: View {
                     Button("Add") { addToDesktop() }.buttonStyle(.cue(.primary, height: 28))
                 }
             }
-            SettingsGroup("Edits", footnote: "Off: every change from Claude waits on the slide for Accept or Undo.") {
-                SettingsSwitch("Auto-accept edits from Claude", isOn: $settings.autoAcceptClaudeEdits)
+            SettingsGroup("Edits", footnote: "Claude's edits show on the slide straight away and are kept, each with Undo. "
+                          + "Turn this on to accept or undo every change before it's kept.") {
+                SettingsSwitch("Review Claude's edits before keeping them", isOn: Binding(
+                    get: { !settings.autoAcceptClaudeEdits }, set: { settings.autoAcceptClaudeEdits = !$0 }
+                ))
             }
             if !connection.approvals.remembered.isEmpty {
                 SettingsGroup("Clients") {
