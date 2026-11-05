@@ -71,7 +71,7 @@ public final class SlideRenderer: NSView {
         )
         install(webView)
         webView.load(URLRequest(url: source.pageURL))
-        if deckScriptsEnabled { watchForHangs(webView) }
+        if deckScriptsEnabled && !paused { watchForHangs(webView) } // Paused pages start watching on resume.
     }
 
     /// A deck that locks up its page gets reloaded once with its own scripts
@@ -134,6 +134,8 @@ public final class SlideRenderer: NSView {
         send(.setPaused(paused))
         webView.setAllMediaPlaybackSuspended(paused)
         guard changed else { return }
+        // A paused page isn't watched for hangs: one ping fewer every few seconds.
+        if paused { watchdog.stop() } else if deckScriptsEnabled { watchForHangs(webView) }
         Task { paused ? await freezeEmbeds() : await thawEmbeds() }
     }
 

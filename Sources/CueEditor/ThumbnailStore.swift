@@ -41,6 +41,9 @@ public final class ThumbnailStore {
         drawing = nil
         pending = []
         renderer.sourceManifest = document.liveManifest
+        // Thumbnails are stills: the deck never needs to play here. Paused,
+        // the hidden page stops its animations, media and hang checks.
+        renderer.setPaused(true)
         do {
             try await renderer.load(DeckSource(document: document))
         } catch {
