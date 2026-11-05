@@ -48,7 +48,8 @@ enum ImagePlaceholders {
             return data
         }
         if let missing {
-            throw CueMCPError.invalid("The image placeholder \(marker)\(missing) isn't in this deck. Keep the placeholders exactly as get_slide_html returned them.")
+            throw CueMCPError.invalid("The image placeholder \(marker)\(missing) isn't in this deck. "
+                + "Keep the placeholders exactly as get_slide_html returned them.")
         }
         return restored
     }
