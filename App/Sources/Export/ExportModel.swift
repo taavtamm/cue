@@ -17,6 +17,9 @@ final class ExportModel {
     let deckName: String
     @ObservationIgnored private let document: () -> DeckDocument
     @ObservationIgnored private weak var window: NSWindow?
+    /// The export sheet itself. The save panel opens on it: a second sheet
+    /// on the deck window would wait, unseen, behind the export sheet.
+    @ObservationIgnored weak var sheet: NSWindow?
     @ObservationIgnored private var task: Task<Void, Never>?
     @ObservationIgnored var onClose: () -> Void = {}
     @ObservationIgnored var onFinish: (Result<DeckExport.Result, Error>, DeckExport.Format) -> Void = { _, _ in }
@@ -35,7 +38,7 @@ final class ExportModel {
     }
 
     func export() {
-        guard let window else { return }
+        guard let window = sheet ?? window else { return }
         let panel = NSSavePanel()
         panel.directoryURL = document().fileURL.deletingLastPathComponent()
         panel.canCreateDirectories = true

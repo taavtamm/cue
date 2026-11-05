@@ -13,6 +13,7 @@ extension DeckWindowController {
         guard let window, window.attachedSheet == nil else { return }
         let model = ExportModel(format: format, document: { [unowned self] in session.document }, window: window)
         let sheet = NSWindow(contentViewController: NSHostingController(rootView: ExportSheet(model: model)))
+        model.sheet = sheet
         let results = ExportWindows.results(for: window)
         model.onClose = { [weak window, weak sheet] in
             if let sheet { window?.endSheet(sheet) }
