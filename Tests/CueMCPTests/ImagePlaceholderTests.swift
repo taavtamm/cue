@@ -23,6 +23,22 @@ struct ImagePlaceholderTests {
         #expect(ImagePlaceholders.shorten(small) == small)
     }
 
+    /// A megabyte-sized screenshot, as real decks have: the scan must still
+    /// find it (ICU's regex overflowed and silently matched nothing).
+    @Test func aMegabyteImageBecomesAPlaceholder() throws {
+        let big = String(repeating: "iVBO", count: 260_000)
+        let deck = #"<img src="data:image/png;base64,\#(big)" alt="x"><p>Text</p>"#
+        let short = ImagePlaceholders.shorten(deck)
+        #expect(short.count < 200)
+        #expect(short.contains("CUE-IMAGE-") && short.contains("<p>Text</p>"))
+        #expect(try ImagePlaceholders.restore(short, from: deck) == deck)
+    }
+
+    @Test func base64OutsideADataURIStaysAsItIs() {
+        let text = "<p>;base64," + String(repeating: "A", count: 3_000) + "</p>"
+        #expect(ImagePlaceholders.shorten(text) == text)
+    }
+
     @Test func anUnknownPlaceholderIsRefused() {
         #expect(throws: (any Error).self) {
             try ImagePlaceholders.restore("<img src=\"data:image/png;base64,CUE-IMAGE-0000000000000000\">", from: Self.deck)
