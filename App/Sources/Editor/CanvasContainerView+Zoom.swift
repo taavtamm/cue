@@ -61,7 +61,7 @@ extension CanvasContainerView {
             if let picture { showZoomCover(picture, frame: coverFrame) }
             change()
             await session.canvas.waitForPaint()
-            try? await Task.sleep(for: .milliseconds(40))
+            try? await Task.sleep(for: .milliseconds(60)) // Margin for the compositor.
             if generation == zoomGeneration { hideZoomCover() }
         }
     }
@@ -69,6 +69,8 @@ extension CanvasContainerView {
     private func showZoomCover(_ picture: NSImage, frame: CGRect) {
         zoomCover?.removeFromSuperview()
         let cover = NSImageView(frame: frame)
+        cover.wantsLayer = true
+        cover.layer?.backgroundColor = NSColor.black.cgColor // Never white, even before the picture draws.
         cover.image = picture
         cover.imageScaling = .scaleAxesIndependently
         addSubview(cover, positioned: .above, relativeTo: scrollView)
