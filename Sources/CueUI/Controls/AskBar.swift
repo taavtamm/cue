@@ -10,6 +10,11 @@ public struct AskBar: View {
     var onSuggestion: (String) -> Void = { _ in }
     var onDictate: () -> Void = {}
     var activity: AskBarActivity = .idle
+    /// A button in the bar for the current status, e.g. Connect… or Undo.
+    var action: (title: String, run: () -> Void)?
+    /// False: a status bar only (the user talks to their agent elsewhere):
+    /// the placeholder is shown as text, with no field, suggestions or mic.
+    var acceptsInput = true
     @Environment(\.cueRendersStatically) private var rendersStatically
 
     public init(
@@ -19,9 +24,13 @@ public struct AskBar: View {
         onSubmit: @escaping () -> Void,
         onSuggestion: @escaping (String) -> Void = { _ in },
         onDictate: @escaping () -> Void = {},
-        activity: AskBarActivity = .idle
+        activity: AskBarActivity = .idle,
+        action: (title: String, run: () -> Void)? = nil,
+        acceptsInput: Bool = true
     ) {
         self.activity = activity
+        self.action = action
+        self.acceptsInput = acceptsInput
         self._text = text
         self.placeholder = placeholder
         self.suggestions = suggestions
@@ -36,10 +45,16 @@ public struct AskBar: View {
             field
                 .frame(height: 40)
                 .frame(maxWidth: .infinity)
-            ForEach(suggestions, id: \.self) { suggestion in
-                SuggestionChip(suggestion) { onSuggestion(suggestion) }
+            if let action {
+                SuggestionChip(action.title, action: action.run)
+            } else if acceptsInput {
+                ForEach(suggestions, id: \.self) { suggestion in
+                    SuggestionChip(suggestion) { onSuggestion(suggestion) }
+                }
             }
-            IconButton("Dictate", systemImage: "mic", size: 38, iconSize: 18, action: onDictate)
+            if acceptsInput {
+                IconButton("Dictate", systemImage: "mic", size: 38, iconSize: 18, action: onDictate)
+            }
         }
         .padding(.leading, 14)
         .padding(.trailing, 8)
@@ -52,7 +67,17 @@ public struct AskBar: View {
     }
 
     @ViewBuilder private var field: some View {
-        if rendersStatically {
+        if !acceptsInput {
+            Text(placeholder)
+                .font(.system(size: 15))
+                .foregroundStyle(activity == .offline ? Color.white.opacity(0.55) : CueTheme.text.opacity(0.88))
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentTransition(.opacity)
+                .animation(.easeInOut(duration: 0.2), value: placeholder)
+                .accessibilityLabel("Agent status: \(placeholder)")
+        } else if rendersStatically {
             Text(text.isEmpty ? placeholder : text)
                 .font(.system(size: 16))
                 .foregroundStyle(text.isEmpty ? Color.white.opacity(0.62) : CueTheme.text)

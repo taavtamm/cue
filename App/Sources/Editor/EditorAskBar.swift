@@ -4,10 +4,11 @@ import CueEditor
 import CueUI
 import SwiftUI
 
-/// "Ask Cue to change this slide…", and below it what the agent is doing:
-/// not connected, listening, reading, editing (the bar's glow speeds up and
-/// shimmers), what it just changed with Undo, or requests waiting for it.
-/// Requests go to the user's own Claude (Claude Code or Claude Desktop over MCP).
+/// The Ask bar is also the agent's status: while it's empty it says what the
+/// agent is doing (not connected, listening, reading, editing, just changed,
+/// requests waiting), the glow speeds up and shimmers while it edits, and a
+/// button in the bar offers the next step (Connect…, Undo). Typing a request
+/// sends it to the user's own Claude (Claude Code or Claude Desktop over MCP).
 struct EditorAskBar: View {
     let session: EditorSession
     let connection: ClaudeConnection
@@ -19,20 +20,14 @@ struct EditorAskBar: View {
 
     var body: some View {
         let status = self.status
-        VStack(spacing: 6) {
-            AskBar(text: $text, placeholder: placeholder, suggestions: suggestions, onSubmit: send,
-                   onSuggestion: { text = $0 }, activity: status.activity)
-                .frame(maxWidth: 780)
-            AskStatusLine(status.text, tone: status.tone, action: status.action)
-                .animation(.easeInOut(duration: 0.2), value: status.text)
-        }
-        .padding(.horizontal, 24)
+        AskBar(text: $text, placeholder: status.text,
+               suggestions: status.offersSuggestions ? suggestions : [], onSubmit: send,
+               onSuggestion: { text = $0 }, activity: status.activity, action: status.action,
+               acceptsInput: false) // The user talks to their agent directly; this is its status.
+            .frame(maxWidth: 780)
+            .padding(.horizontal, 24)
         .frame(maxWidth: .infinity)
         .task(id: session.claudeChanges.latestUndoable?.id) { await expireChangeNotice() }
-    }
-
-    private var placeholder: String {
-        connection.clients.isEmpty ? "Connect an agent to ask Cue to change this slide…" : "Ask Cue to change this slide…"
     }
 
     private var suggestions: [String] {
@@ -44,6 +39,8 @@ struct EditorAskBar: View {
         var tone: AskStatusLine.Tone
         var activity: AskBarActivity
         var action: (title: String, run: () -> Void)?
+        /// Ready for a request: show the suggestion chips.
+        var offersSuggestions: Bool { tone == .idle || tone == .listening }
     }
 
     private var status: Status {
@@ -74,7 +71,7 @@ struct EditorAskBar: View {
         }
         if waiting > 0 { return Status(text: "Sending to your agent…", tone: .working, activity: .working) }
         if listening { return Status(text: "\(agentName) is listening", tone: .listening, activity: .listening) }
-        return Status(text: "\(agentName) connected", tone: .idle, activity: .idle)
+        return Status(text: "\(agentName) connected · ready", tone: .idle, activity: .idle)
     }
 
     private var agentName: String {
