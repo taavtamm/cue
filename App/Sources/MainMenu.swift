@@ -38,6 +38,20 @@ enum MainMenu {
         menu.addItem(withTitle: "Save", action: #selector(DeckWindowController.saveDocument(_:)), keyEquivalent: "s")
         menu.addItem(withTitle: "Revert to Saved", action: #selector(DeckWindowController.revertDocumentToSaved(_:)),
                      keyEquivalent: "")
+        menu.addItem(.separator())
+        menu.addItem(submenu(exportMenu()))
+        return menu
+    }
+
+    /// File › Export: an editable PowerPoint (static), PDF or images.
+    private static func exportMenu() -> NSMenu {
+        let menu = NSMenu(title: "Export")
+        let all = menu.addItem(withTitle: "Export…", action: #selector(DeckWindowController.exportDeck(_:)), keyEquivalent: "e")
+        all.keyEquivalentModifierMask = [.command, .shift]
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "PowerPoint…", action: #selector(DeckWindowController.exportPowerPoint(_:)), keyEquivalent: "")
+        menu.addItem(withTitle: "PDF…", action: #selector(DeckWindowController.exportPDF(_:)), keyEquivalent: "")
+        menu.addItem(withTitle: "Images…", action: #selector(DeckWindowController.exportImages(_:)), keyEquivalent: "")
         return menu
     }
 

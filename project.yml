@@ -32,6 +32,8 @@ targets:
         product: CueImport
       - package: CuePackage
         product: CueMCP
+      - package: CuePackage
+        product: CueExport
       # The helper Claude starts (`claude mcp add cue -- …/Contents/MacOS/cue-mcp`).
       - target: cue-mcp
         embed: true

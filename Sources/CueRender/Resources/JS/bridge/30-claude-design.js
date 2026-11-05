@@ -19,9 +19,10 @@ cue.createClaudeDesignPlayer = (config) => {
   const lastStep = (i) => Math.max(0, stepsOf(i).length - 1);
 
   const embeds = cue.createEmbeds(motion, frameFor);
-  const runsEmbeds = config.surface !== 'thumbnail' && config.surface !== 'export';
-  // The pictures say "not captured for export": wrong on every surface but an export.
-  if (config.surface !== 'export') embeds.hidePictures();
+  // Exports run the embeds too, so they capture a real frame of them.
+  const runsEmbeds = config.surface !== 'thumbnail';
+  // The deck's stills say "not captured for export": never show them.
+  embeds.hidePictures();
   const animates = ['stage', 'mirror', 'presenterCurrent', 'editor'].includes(config.surface);
 
   let current = null; // { slide, build }

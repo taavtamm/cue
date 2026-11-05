@@ -21,7 +21,10 @@ extension SlideRenderer {
     /// has reached the screen: two animation frames for layout and paint,
     /// then a snapshot that WebKit only delivers after the next screen update.
     public func waitForPaint() async {
-        _ = try? await callInBridge("await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)))")
+        // Off-screen windows get no animation frames, so never wait more than 100 ms for them.
+        _ = try? await callInBridge(
+            "await new Promise((done) => { requestAnimationFrame(() => requestAnimationFrame(done)); setTimeout(done, 100); })"
+        )
         guard let webView else { return }
         let barrier = WKSnapshotConfiguration()
         barrier.rect = CGRect(x: 0, y: 0, width: 4, height: 4)

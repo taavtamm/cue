@@ -11,6 +11,8 @@ import PackageDescription
 //               import into Cue-convention HTML decks. No AppKit.
 //   CueEditor – The editor's state and logic: selection, inspector values,
 //               timeline, thumbnails. Views live in the app target.
+//   CueExport – PowerPoint (editable, static), PDF and PNG export of the
+//               rendered deck. WebKit via CueRender; writes OOXML itself.
 //   CueMCP    – Cue's MCP server (tools, resources, change sets over a
 //               DeckHost), the Unix-socket listener. CueCore + MCP only.
 //   cue-mcp   – The tiny helper Claude starts: pipes stdio to Cue's socket.
@@ -24,6 +26,7 @@ let package = Package(
         .library(name: "CueImport", targets: ["CueImport"]),
         .library(name: "CueEditor", targets: ["CueEditor"]),
         .library(name: "CueMCP", targets: ["CueMCP"]),
+        .library(name: "CueExport", targets: ["CueExport"]),
         .executable(name: "cue-mcp", targets: ["cue-mcp"]),
     ],
     dependencies: [
@@ -37,11 +40,13 @@ let package = Package(
         .target(name: "CueEditor", dependencies: ["CueCore", "CueRender"]),
         .target(name: "CueMCP", dependencies: ["CueCore", .product(name: "MCP", package: "swift-sdk")]),
         .executableTarget(name: "cue-mcp"),
+        .target(name: "CueExport", dependencies: ["CueCore", "CueRender", "CueImport"]),
         .testTarget(name: "CueCoreTests", dependencies: ["CueCore"]),
         .testTarget(name: "CueRenderTests", dependencies: ["CueRender"]),
         .testTarget(name: "CueUITests", dependencies: ["CueUI"]),
         .testTarget(name: "CueImportTests", dependencies: ["CueImport", "CueRender"]),
         .testTarget(name: "CueEditorTests", dependencies: ["CueEditor", "CueRender"]),
+        .testTarget(name: "CueExportTests", dependencies: ["CueExport", "CueImport", "CueRender"]),
         .testTarget(name: "CueMCPTests", dependencies: ["CueMCP", .product(name: "MCP", package: "swift-sdk")]),
     ],
     swiftLanguageModes: [.v6]
