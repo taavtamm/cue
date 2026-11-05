@@ -184,6 +184,16 @@ final class DeckWindowController: NSWindowController, NSWindowDelegate {
         session.clearSelection()
     }
 
+    /// A covered or minimised editor pauses its live slide (nobody can see
+    /// it); it resumes, as the user left it, when visible again. A window
+    /// that's visible but not active keeps playing: the user may be watching
+    /// Cue while their agent edits from another app.
+    func windowDidChangeOcclusionState(_ notification: Notification) {
+        guard show == nil, let window else { return }
+        let visible = window.occlusionState.contains(.visible)
+        session.canvas.setPaused(!visible || !session.isPlayingLive)
+    }
+
     func windowWillClose(_ notification: Notification) {
         keyRouter?.stop()
         show?.end()

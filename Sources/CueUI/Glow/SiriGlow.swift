@@ -23,7 +23,10 @@ public struct SiriGlow<S: Shape>: View {
     static var frameInterval: TimeInterval { 1.0 / 30 }
 
     public var body: some View {
-        let still = reduceMotion || isPaused || activeState == .inactive
+        // Idle glow rests in background windows; a busy one (faster than the
+        // design speed) keeps turning, since the user may be watching Cue
+        // while their agent works from another app.
+        let still = reduceMotion || isPaused || (activeState == .inactive && speed <= 1)
         TimelineView(.animation(minimumInterval: Self.frameInterval, paused: still)) { timeline in
             let gradient = Self.gradient(angle: Self.angle(at: timeline.date, reduceMotion: still, speed: speed))
             ZStack {

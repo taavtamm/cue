@@ -7,16 +7,19 @@ import SwiftUI
 public struct PulsingDot: View {
     let color: Color
     var diameter: CGFloat = 8
+    /// False for activity indicators the user watches from another app.
+    var restsWhenInactive = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.controlActiveState) private var activeState
     @State private var dim = false
 
-    public init(_ color: Color, diameter: CGFloat = 8) {
+    public init(_ color: Color, diameter: CGFloat = 8, restsWhenInactive: Bool = true) {
         self.color = color
         self.diameter = diameter
+        self.restsWhenInactive = restsWhenInactive
     }
 
-    private var animates: Bool { !reduceMotion && activeState != .inactive }
+    private var animates: Bool { !reduceMotion && !(restsWhenInactive && activeState == .inactive) }
 
     public var body: some View {
         Circle()

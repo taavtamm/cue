@@ -7,7 +7,6 @@ public struct AskOrb: View {
     var diameter: CGFloat = 26
     var breathes = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.controlActiveState) private var activeState
     @State private var breathing = false
 
     public init(diameter: CGFloat = 26, breathes: Bool = true) {
@@ -15,7 +14,9 @@ public struct AskOrb: View {
         self.breathes = breathes
     }
 
-    private var animates: Bool { breathes && !reduceMotion && activeState != .inactive }
+    /// Breathing means the agent is busy: keep it up even when Cue isn't the
+    /// active app, because the user may be watching from their agent.
+    private var animates: Bool { breathes && !reduceMotion }
 
     public var body: some View {
         Circle()

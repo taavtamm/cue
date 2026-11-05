@@ -34,8 +34,8 @@ public struct AskStatusLine: View {
         case .offline: Circle().fill(CueTheme.textTertiary.opacity(0.6)).frame(width: 7, height: 7)
         case .idle: Circle().fill(CueTheme.successBright.opacity(0.8)).frame(width: 7, height: 7)
         case .listening: PulsingDot(CueTheme.successBright, diameter: 7)
-        case .working: PulsingDot(CueTheme.live, diameter: 7)
-        case .editing: PulsingDot(CueTheme.violet, diameter: 8)
+        case .working: PulsingDot(CueTheme.live, diameter: 7, restsWhenInactive: false)
+        case .editing: PulsingDot(CueTheme.violet, diameter: 8, restsWhenInactive: false)
         case .done: Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)).foregroundStyle(CueTheme.successBright)
         }
     }
