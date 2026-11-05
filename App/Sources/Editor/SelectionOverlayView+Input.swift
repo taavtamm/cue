@@ -123,7 +123,7 @@ extension SelectionOverlayView {
     }
 
     override func magnify(with event: NSEvent) {
-        container?.magnify(by: event.magnification, at: convert(event.locationInWindow, from: nil))
+        container?.pinch(event)
     }
 
     override func smartMagnify(with event: NSEvent) {

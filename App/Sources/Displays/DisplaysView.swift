@@ -36,6 +36,7 @@ struct DisplaysView: View {
         .padding(.leading, 92) // Clear of the window's traffic lights.
         .padding(.trailing, 22)
         .frame(height: NSWindow.cueToolbarHeight)
+        .background(WindowTitleBarArea())
     }
 
     @ViewBuilder private var rolePanel: some View {

@@ -31,6 +31,7 @@ struct EditorToolbar: View {
         }
         .padding(.horizontal, 16)
         .frame(height: NSWindow.cueToolbarHeight)
+        .background(WindowTitleBarArea()) // Drag, tile and double-click like a title bar.
     }
 
     private var titleBlock: some View {

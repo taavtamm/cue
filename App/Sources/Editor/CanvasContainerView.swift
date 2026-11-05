@@ -40,6 +40,10 @@ final class CanvasContainerView: NSView {
         scrollView.autohidesScrollers = true
         scrollView.scrollerStyle = .overlay
         scrollView.automaticallyAdjustsContentInsets = false
+        // Live pinch magnification (see `pinch`); the real zoom is the content's size.
+        scrollView.allowsMagnification = true
+        scrollView.minMagnification = 0.1
+        scrollView.maxMagnification = CanvasZoom.range.upperBound
         scrollView.documentView = content
         addSubview(scrollView)
         for view in [session.canvas, overlay, caret] as [NSView] { content.addSubview(view) }

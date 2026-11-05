@@ -34,6 +34,19 @@ public final class CanvasZoom {
     /// The scroll origin that keeps `anchor` (a point in the zoomed content,
     /// before the change) under the same spot on screen after zooming from
     /// `old` to `new`. `visibleOrigin` is the scroll position before.
+    /// After a live pinch (the scroll view magnified by `magnification`), the
+    /// scroll origin that keeps the content point under the fingers in place
+    /// once the content is re-sized from `old` to `new` and unmagnified.
+    /// `pointerInClip` and `clipOrigin` are in the clip view's bounds units.
+    public static func originAfterPinch(
+        pointer: CGPoint, pointerInClip: CGPoint, clipOrigin: CGPoint, magnification: CGFloat, old: CGFloat, new: CGFloat
+    ) -> CGPoint {
+        let onScreen = CGPoint(x: (pointerInClip.x - clipOrigin.x) * magnification,
+                               y: (pointerInClip.y - clipOrigin.y) * magnification)
+        let factor = new / max(0.0001, old)
+        return CGPoint(x: pointer.x * factor - onScreen.x, y: pointer.y * factor - onScreen.y)
+    }
+
     public static func anchoredOrigin(anchor: CGPoint, visibleOrigin: CGPoint, old: CGFloat, new: CGFloat) -> CGPoint {
         let factor = new / max(0.0001, old)
         let onScreen = CGPoint(x: anchor.x - visibleOrigin.x, y: anchor.y - visibleOrigin.y)

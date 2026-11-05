@@ -82,6 +82,8 @@ struct SlideSidebar: View {
             if let to = SlideReorder.destination(moving: from, toGap: gap) { actions.moveSlide(from, to) }
         }
             .onTapGesture {
+                // Take the keyboard back from the notes or Ask bar, so ↑ ↓ change slides.
+                NSApp.keyWindow?.makeFirstResponder(nil)
                 session.keyFocus = .sidebar
                 session.showSlide(index)
             }

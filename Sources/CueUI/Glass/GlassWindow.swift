@@ -33,6 +33,37 @@ extension NSWindow {
         glass.tintColor = NSColor(red: 12 / 255, green: 10 / 255, blue: 16 / 255, alpha: 0.55)
         glass.contentView = NSHostingView(rootView: root.background(CueGlassTint()).ignoresSafeArea())
         contentView = glass
+        hidesToolbarInFullScreen()
+    }
+
+    /// In full screen macOS draws the toolbar in its own opaque strip, which
+    /// for Cue's empty placeholder toolbar is a blank white band over the
+    /// app's real toolbar row. Hide it while in full screen.
+    @MainActor
+    private func hidesToolbarInFullScreen() {
+        let center = NotificationCenter.default
+        center.addObserver(forName: NSWindow.willEnterFullScreenNotification, object: self, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.toolbar?.isVisible = false }
+        }
+        center.addObserver(forName: NSWindow.didExitFullScreenNotification, object: self, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.toolbar?.isVisible = true }
+        }
+    }
+}
+
+/// Makes empty parts of a glass window's toolbar row behave like a title
+/// bar: drag to move the window (including dragging it to the top of the
+/// screen to fill it, and the other tiling gestures) and double-click to
+/// zoom, as the user set in System Settings.
+public struct WindowTitleBarArea: View {
+    public init() {}
+
+    public var body: some View {
+        Color.clear
+            .contentShape(Rectangle())
+            .gesture(WindowDragGesture())
+            .onTapGesture(count: 2) { NSApp.keyWindow?.performZoom(nil) }
+            .accessibilityHidden(true)
     }
 }
 

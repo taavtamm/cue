@@ -21,6 +21,19 @@ struct CanvasZoomTests {
         #expect(zoom.smartMagnified() == 2)
     }
 
+    @Test func livePinchKeepsThePointUnderTheFingersWhenItSettles() {
+        // At fit, the fingers are 300×200 pt into the view. Pinching to 2×
+        // magnifies about that point: the clip's origin moves to 150×100 in
+        // content units. After re-rendering at 2× the origin must be 300×200,
+        // the same answer as zooming in one step.
+        let origin = CanvasZoom.originAfterPinch(
+            pointer: CGPoint(x: 300, y: 200), pointerInClip: CGPoint(x: 300, y: 200),
+            clipOrigin: CGPoint(x: 150, y: 100), magnification: 2, old: 1, new: 2
+        )
+        #expect(origin == CGPoint(x: 300, y: 200))
+        #expect(origin == CanvasZoom.anchoredOrigin(anchor: CGPoint(x: 300, y: 200), visibleOrigin: .zero, old: 1, new: 2))
+    }
+
     @Test func pinchKeepsThePointUnderTheFingers() {
         // At 1×, the pointer is 300 pt into a view scrolled to 0. Zooming to 2×
         // puts that content point at 600; scroll 300 so it stays under the pointer.
