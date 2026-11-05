@@ -100,7 +100,20 @@ import Testing
     @Test func layoutChangeReopensAScreenThatChangedRole() {
         let change = DisplayLayoutChange(from: ["lg": .stage], to: DisplayRoles(["lg": .off]))
         #expect(change.close == ["lg"])
-        #expect(change.open.isEmpty)
+        #expect(change.open == ["lg": .off], "Off gets a black cover")
         #expect(DisplayLayoutChange(from: ["lg": .stage], to: DisplayRoles(["lg": .stage])).isEmpty)
+    }
+
+    /// The bug: an Off screen showed the desktop during the show.
+    @Test func offScreensGetABlackCover() {
+        let change = DisplayLayoutChange(from: [:], to: DisplayRoles(["builtin": .off, "lg": .stage]))
+        #expect(change.open == ["builtin": .off, "lg": .stage])
+    }
+
+    /// Unknown screens read as Off, so an unplugged Off screen must still close.
+    @Test func anUnpluggedOffScreenCloses() {
+        let change = DisplayLayoutChange(from: ["builtin": .presenter, "ipad": .off], to: DisplayRoles(["builtin": .presenter]))
+        #expect(change.close == ["ipad"])
+        #expect(change.open.isEmpty)
     }
 }

@@ -12,15 +12,20 @@ enum ScreenCatalog {
         NSScreen.screens.first { id(of: $0) == displayID }
     }
 
-    /// The display's UUID, which survives reconnects and reboots. Falls back
-    /// to the display number when macOS has no UUID for it.
+    /// The display's UUID, which survives reconnects and reboots, so a room
+    /// gets its roles back. Two identical monitors without serial numbers
+    /// can share a UUID; then each also gets its display number, so they
+    /// keep separate roles. Falls back to the number when there's no UUID.
     static func id(of screen: NSScreen) -> String {
         let number = displayNumber(of: screen)
-        if let uuid = CGDisplayCreateUUIDFromDisplayID(number)?.takeRetainedValue(),
-           let text = CFUUIDCreateString(nil, uuid) as String? {
-            return text
-        }
-        return "display-\(number)"
+        guard let own = uuid(of: number) else { return "display-\(number)" }
+        let sharing = NSScreen.screens.filter { uuid(of: displayNumber(of: $0)) == own }.count
+        return sharing > 1 ? "\(own)-\(number)" : own
+    }
+
+    private static func uuid(of number: CGDirectDisplayID) -> String? {
+        guard let uuid = CGDisplayCreateUUIDFromDisplayID(number)?.takeRetainedValue() else { return nil }
+        return CFUUIDCreateString(nil, uuid) as String?
     }
 
     private static func info(_ screen: NSScreen) -> DisplayInfo {

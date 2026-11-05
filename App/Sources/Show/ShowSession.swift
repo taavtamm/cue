@@ -34,6 +34,8 @@ final class ShowSession {
     private(set) var surfaces: [String: ShowSurface] = [:]
     private var savedPresentationOptions: NSApplication.PresentationOptions = []
     private var hasEnded = false
+    /// Showing the presenter view on the main screen because no screen shows it.
+    private var usesFallbackPresenter = false
 
     init(
         deck: DeckDocument, startSlide: Int, mode: Mode, displays: DisplayCoordinator,
@@ -105,30 +107,40 @@ final class ShowSession {
 
     /// Opens, closes or replaces windows so each screen shows its current role.
     private func applyDisplayRoles() {
-        // The fallback presenter view isn't a display: keep it out of the role diff.
-        let current = surfaces.filter { $0.key != Self.fallbackKey }.mapValues(\.role)
-        let change = DisplayLayoutChange(from: current, to: displays.roles)
+        let target = FallbackPresenter.roles(displays.roles, mainID: Self.mainDisplayID, active: &usesFallbackPresenter)
+        // With no audience screen the presenter view also runs the show (auto-builds);
+        // when that changes, its window is rebuilt so only one surface leads.
+        let rehearsing = target.stageID == nil && target.displays(with: .mirror).isEmpty
+        if rehearsing != model.isRehearsal {
+            model.isRehearsal = rehearsing
+            for (id, surface) in surfaces where surface.role == .presenter {
+                surfaces.removeValue(forKey: id)
+                close(surface)
+            }
+        }
+        let change = DisplayLayoutChange(from: surfaces.mapValues(\.role), to: target)
         for id in change.close {
             if let surface = surfaces.removeValue(forKey: id) { close(surface) }
         }
-        let opening = change.open.sorted(by: { $0.key < $1.key }).compactMap { id, role in
-            ScreenCatalog.screen(for: id).map { (id, role, $0) }
+        for (id, role) in change.open.sorted(by: { $0.key < $1.key }) {
+            guard let screen = ScreenCatalog.screen(for: id) else { continue }
+            open(role, in: .covering(screen, for: role), key: id)
         }
-        let fallbackIsOpen = surfaces[Self.fallbackKey] != nil
-        let roles = surfaces.filter { $0.key != Self.fallbackKey }.map(\.value.role) + opening.map(\.1)
-        let fallback = FallbackPresenter.decide(roles: roles.filter { $0 != .off }, fallbackIsOpen: fallbackIsOpen)
-        if fallback == .close, let view = surfaces.removeValue(forKey: Self.fallbackKey) {
-            close(view)
-            model.isRehearsal = false // Before opening real screens, so they're built as a real show.
-        }
-        for (id, role, screen) in opening { open(role, in: .covering(screen), key: id) }
-        if fallback == .open { openRehearsalView() } // Never strand the presenter without a window.
+        refitWindowsToScreens()
         updateScreenNames()
         render()
     }
 
-    /// The presenter view on this Mac, when no screen shows the presenter.
-    private static let fallbackKey = "rehearse-presenter"
+    /// A screen that changed resolution or moved keeps its window covering it.
+    private func refitWindowsToScreens() {
+        for (id, surface) in surfaces {
+            guard let screen = ScreenCatalog.screen(for: id), surface.window.frame != screen.frame else { continue }
+            surface.window.setFrame(screen.frame, display: true)
+        }
+    }
+
+    /// The screen with the menu bar, where the presenter view goes if no screen shows it.
+    private static var mainDisplayID: String? { NSScreen.screens.first.map(ScreenCatalog.id(of:)) }
 
     /// Rehearsal is the presenter view alone, full screen on this Mac, like
     /// Keynote's: current slide, notes and what's next. No stage window.
@@ -136,7 +148,7 @@ final class ShowSession {
         model.isRehearsal = true
         model.showsFocusWarning = false
         let screen = NSScreen.main ?? NSScreen.screens[0]
-        open(.presenter, in: .covering(screen), key: Self.fallbackKey)
+        open(.presenter, in: .covering(screen, for: .presenter), key: "rehearse-presenter")
         updateScreenNames()
     }
 

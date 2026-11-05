@@ -10,7 +10,8 @@ public enum DisplayRole: String, Sendable, Codable, CaseIterable, Identifiable {
     case confidence
     /// A second audience screen, kept in step with the stage.
     case mirror
-    /// Left alone during the show.
+    /// Black for the whole show, so the desktop and other windows stay hidden.
+    /// (macOS has no public way for an app to switch one screen off.)
     case off
 
     public var id: String { rawValue }
@@ -31,7 +32,7 @@ public enum DisplayRole: String, Sendable, Codable, CaseIterable, Identifiable {
         case .presenter: "Current and next slide, notes, timer and controls."
         case .confidence: "Large next slide and timer for a floor or lectern screen."
         case .mirror: "A second audience screen, kept in step with the stage."
-        case .off: "Leave this display alone during the show."
+        case .off: "Stays black during the show, so your desktop and other windows stay hidden."
         }
     }
 

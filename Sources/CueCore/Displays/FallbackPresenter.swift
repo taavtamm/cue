@@ -1,15 +1,18 @@
-/// When a show has no screen showing the presenter, Cue shows the presenter
-/// view on this Mac instead, so the presenter is never left without a window
-/// (and Esc, the timer and notes). This decides, after every layout change,
-/// whether that fallback view should open, close or stay.
-public enum FallbackPresenter: Equatable, Sendable {
-    case open, close, keep
-
-    /// `roles` are the roles of the windows the show has on real screens.
-    public static func decide(roles: [DisplayRole], fallbackIsOpen: Bool) -> FallbackPresenter {
-        let presenterShown = roles.contains(.presenter) || roles.contains(.confidence)
-        if roles.isEmpty { return fallbackIsOpen ? .keep : .open }
-        if presenterShown { return fallbackIsOpen ? .close : .keep }
-        return .keep // An audience screen alone: keep whatever the presenter has.
+/// The presenter must never be left without a window (notes, timer, Esc).
+/// When no screen shows the presenter view, Cue shows it on the main screen
+/// instead of that screen's Off cover. Pure, so the rule is testable.
+public enum FallbackPresenter {
+    /// The roles a show should actually use. `active` carries the decision
+    /// between calls: it turns on when every screen is Off, stays on when an
+    /// audience screen is added (the presenter still needs their view), and
+    /// turns off once a real presenter or confidence screen exists.
+    public static func roles(_ chosen: DisplayRoles, mainID: String?, active: inout Bool) -> DisplayRoles {
+        let shown = chosen.roles.values.filter { $0 != .off }
+        if shown.isEmpty { active = true }
+        if shown.contains(.presenter) || shown.contains(.confidence) { active = false }
+        guard active, let mainID, chosen.roles[mainID] == .off else { return chosen }
+        var roles = chosen
+        roles.assign(.presenter, to: mainID)
+        return roles
     }
 }

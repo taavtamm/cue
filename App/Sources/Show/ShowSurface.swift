@@ -42,8 +42,12 @@ final class ShowSurface {
             let view = ConfidenceView(model: model, next: next)
             window.contentView = NSHostingView(rootView: view)
             return ShowSurface(role: role, window: window, renderers: [next], chrome: AnyView(view))
-        case .off:
-            return nil
+        case .off: // Black, so the desktop and other windows never show during the show.
+            let blank = NSView()
+            blank.wantsLayer = true
+            blank.layer?.backgroundColor = NSColor.black.cgColor
+            window.contentView = blank
+            return ShowSurface(role: role, window: window, renderers: [])
         }
     }
 

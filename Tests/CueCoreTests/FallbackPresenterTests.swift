@@ -3,21 +3,37 @@ import Testing
 
 @Suite("Fallback presenter view")
 struct FallbackPresenterTests {
-    @Test func noWindowsLeftOpensIt() {
-        // Laptop set to Off, projector unplugged: nothing would be on screen.
-        #expect(FallbackPresenter.decide(roles: [], fallbackIsOpen: false) == .open)
+    @Test func everyScreenOffPutsThePresenterOnTheMainScreen() {
+        var active = false
+        let roles = FallbackPresenter.roles(DisplayRoles(["mac": .off, "lg": .off]), mainID: "mac", active: &active)
+        #expect(roles.role(of: "mac") == .presenter)
+        #expect(roles.role(of: "lg") == .off, "the other screen stays black")
+        #expect(active)
     }
 
-    @Test func pluggingInAnAudienceScreenKeepsIt() {
-        #expect(FallbackPresenter.decide(roles: [.stage], fallbackIsOpen: true) == .keep)
+    @Test func addingAnAudienceScreenKeepsIt() {
+        var active = true
+        let roles = FallbackPresenter.roles(DisplayRoles(["mac": .off, "lg": .stage]), mainID: "mac", active: &active)
+        #expect(roles.role(of: "mac") == .presenter)
+        #expect(roles.role(of: "lg") == .stage)
     }
 
     @Test func aRealPresenterScreenReplacesIt() {
-        #expect(FallbackPresenter.decide(roles: [.stage, .presenter], fallbackIsOpen: true) == .close)
-        #expect(FallbackPresenter.decide(roles: [.confidence], fallbackIsOpen: true) == .close)
+        var active = true
+        let chosen = DisplayRoles(["mac": .off, "ipad": .presenter, "lg": .stage])
+        #expect(FallbackPresenter.roles(chosen, mainID: "mac", active: &active) == chosen)
+        #expect(!active)
     }
 
-    @Test func withoutAFallbackNothingChanges() {
-        #expect(FallbackPresenter.decide(roles: [.stage, .presenter], fallbackIsOpen: false) == .keep)
+    @Test func notNeededWhenTheChoiceAlreadyShowsSomething() {
+        var active = false
+        let chosen = DisplayRoles(["mac": .off, "lg": .stage]) // The presenter chose no presenter view.
+        #expect(FallbackPresenter.roles(chosen, mainID: "mac", active: &active) == chosen)
+    }
+
+    @Test func neverTakesOverAScreenThatShowsSomething() {
+        var active = true
+        let chosen = DisplayRoles(["mac": .stage])
+        #expect(FallbackPresenter.roles(chosen, mainID: "mac", active: &active) == chosen)
     }
 }
