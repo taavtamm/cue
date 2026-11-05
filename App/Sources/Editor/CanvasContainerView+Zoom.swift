@@ -34,13 +34,55 @@ extension CanvasContainerView {
         let pointer = content.convert(windowPoint, from: nil) // Content units, before the change.
         let inClip = clip.convert(windowPoint, from: nil)
         let clipOrigin = clip.bounds.origin
-        let old = appliedZoom
-        let new = session.zoom.set(old * magnification)
-        scrollView.magnification = 1
-        applyZoom(new, anchor: nil)
-        scrollKeepingInBounds(to: CanvasZoom.originAfterPinch(
-            pointer: pointer, pointerInClip: inClip, clipOrigin: clipOrigin, magnification: magnification, old: old, new: new
-        ))
+        changeZoomWithoutFlicker { [self] in
+            let old = appliedZoom
+            let new = session.zoom.set(old * magnification)
+            scrollView.magnification = 1
+            applyZoom(new, anchor: nil)
+            scrollKeepingInBounds(to: CanvasZoom.originAfterPinch(
+                pointer: pointer, pointerInClip: inClip, clipOrigin: clipOrigin, magnification: magnification,
+                old: old, new: new
+            ))
+        }
+    }
+
+    /// Resizing the page makes WebKit repaint, and for a moment it showed its
+    /// old picture at the wrong scale and place. So: lay a picture of what's
+    /// on screen over the canvas, make the change under it, and fade the
+    /// picture out once the page has painted at the new size.
+    func changeZoomWithoutFlicker(_ change: @escaping @MainActor () -> Void) {
+        zoomGeneration += 1
+        let generation = zoomGeneration
+        let visible = scrollView.contentView.bounds.intersection(content.bounds)
+        let coverFrame = convert(visible, from: content)
+        Task { @MainActor in
+            let picture = try? await session.canvas.snapshot(of: visible)
+            guard generation == zoomGeneration else { return } // A newer zoom took over; it applies this one too.
+            if let picture { showZoomCover(picture, frame: coverFrame) }
+            change()
+            await session.canvas.waitForPaint()
+            try? await Task.sleep(for: .milliseconds(40))
+            if generation == zoomGeneration { hideZoomCover() }
+        }
+    }
+
+    private func showZoomCover(_ picture: NSImage, frame: CGRect) {
+        zoomCover?.removeFromSuperview()
+        let cover = NSImageView(frame: frame)
+        cover.image = picture
+        cover.imageScaling = .scaleAxesIndependently
+        addSubview(cover, positioned: .above, relativeTo: scrollView)
+        zoomCover = cover
+    }
+
+    private func hideZoomCover() {
+        guard let cover = zoomCover else { return }
+        zoomCover = nil
+        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion { return cover.removeFromSuperview() }
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = 0.12
+            cover.animator().alphaValue = 0
+        }, completionHandler: { cover.removeFromSuperview() })
     }
 
     private func scrollKeepingInBounds(to origin: CGPoint) {
@@ -64,8 +106,10 @@ extension CanvasContainerView {
 
     /// Changes zoom, keeping `anchor` (content coordinates) still, or the centre.
     func zoom(to scale: CGFloat, anchor: CGPoint? = nil) {
-        let new = session.zoom.set(scale)
-        applyZoom(new, anchor: anchor)
+        changeZoomWithoutFlicker { [self] in
+            let new = session.zoom.set(scale)
+            applyZoom(new, anchor: anchor)
+        }
     }
 
     /// After a slide change: keep the zoom, look at the middle of the slide.

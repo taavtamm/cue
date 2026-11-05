@@ -25,6 +25,9 @@ final class CanvasContainerView: NSView {
     private var resizeRefresh: Task<Void, Never>?
     /// The zoom the content is sized for, and the slide it was last centred on.
     private(set) var appliedZoom: CGFloat = 1
+    /// Stands in for the canvas while it re-renders after a zoom change.
+    var zoomCover: NSImageView?
+    var zoomGeneration = 0
     var shownSlide = -1
 
     init(session: EditorSession) {

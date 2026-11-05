@@ -25,7 +25,8 @@ public final class SlideRenderer: NSView {
     public var sourceManifest: [LiveElement]?
     public internal(set) var lastMapping: LiveMappingReport?
 
-    private var webView: WKWebView?
+    /// Internal for the extensions in this module (zoom snapshots).
+    var webView: WKWebView?
     private let messages = BridgeMessageHandler()
     private let policy = SandboxPolicy()
     private let watchdog = ScriptWatchdog()
