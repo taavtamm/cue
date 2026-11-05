@@ -1,6 +1,7 @@
 import CueCore
 import Foundation
 import Observation
+import SwiftUI
 
 /// What the presenter and confidence screens show. Reads the live
 /// `ShowController`; buttons call back into the show session.
@@ -61,6 +62,13 @@ final class PresenterModel {
     func pace(at elapsed: TimeInterval) -> ShowPace {
         let progress = ShowPace.progress(of: position, stateCounts: controller.stateCounts)
         return ShowPace(elapsed: elapsed, target: targetDuration, progress: progress)
+    }
+
+    /// The show timer redraws once a second, on the second, and not at all
+    /// while it's paused (an hour between ticks; any change redraws anyway).
+    static func clockSchedule(running: Bool) -> PeriodicTimelineSchedule {
+        .periodic(from: Date(timeIntervalSinceReferenceDate: Date().timeIntervalSinceReferenceDate.rounded(.down)),
+                  by: running ? 1 : 3_600)
     }
 
     func biggerNotes() { notesSize = min(Self.notesSizes.upperBound, notesSize + 3) }

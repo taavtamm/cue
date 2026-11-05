@@ -12,7 +12,7 @@ struct ConfidenceView: View {
         HStack(alignment: .top, spacing: 40) {
             NextSlidePanel(model: model, renderer: next, titleSize: 18)
             VStack(alignment: .leading, spacing: 18) {
-                TimelineView(.periodic(from: .now, by: 0.5)) { _ in
+                TimelineView(PresenterModel.clockSchedule(running: model.controller.timer.isRunning)) { _ in
                     let elapsed = model.controller.elapsed
                     VStack(alignment: .leading, spacing: 6) {
                         Text(ElapsedTimer.format(elapsed))

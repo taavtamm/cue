@@ -7,7 +7,7 @@ struct PresenterHeader: View {
 
     var body: some View {
         HStack(spacing: 18) {
-            TimelineView(.periodic(from: .now, by: 0.5)) { _ in
+            TimelineView(PresenterModel.clockSchedule(running: model.controller.timer.isRunning)) { _ in
                 let elapsed = model.controller.elapsed
                 ElapsedTimer(elapsed: elapsed, target: model.targetDuration, pace: model.pace(at: elapsed).text)
             }

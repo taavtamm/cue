@@ -49,10 +49,7 @@ public final class GlowTextEditorView: NSView {
 
     private func wireEvents() {
         textView.onCaretChange = { [weak self] in self?.updateCaret() }
-        textView.onFocusChange = { [weak self] focused in
-            self?.caretOverlay.setFocused(focused)
-            self?.updateCaret()
-        }
+        textView.onFocusChange = { [weak self] _ in self?.updateFocus() }
         NotificationCenter.default.addObserver(
             self, selector: #selector(contentScrolled),
             name: NSView.boundsDidChangeNotification, object: scrollView.contentView
@@ -61,6 +58,27 @@ public final class GlowTextEditorView: NSView {
             self, selector: #selector(textEdited),
             name: NSText.didChangeNotification, object: textView
         )
+    }
+
+    /// The caret blinks only in the key window: a field left focused in a
+    /// background window shows nothing and costs nothing.
+    override public func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        let center = NotificationCenter.default
+        center.removeObserver(self, name: NSWindow.didBecomeKeyNotification, object: nil)
+        center.removeObserver(self, name: NSWindow.didResignKeyNotification, object: nil)
+        guard let window else { return }
+        center.addObserver(self, selector: #selector(windowKeyChanged), name: NSWindow.didBecomeKeyNotification, object: window)
+        center.addObserver(self, selector: #selector(windowKeyChanged), name: NSWindow.didResignKeyNotification, object: window)
+        updateFocus()
+    }
+
+    @objc private func windowKeyChanged() { updateFocus() }
+
+    private func updateFocus() {
+        let focused = window?.firstResponder === textView && window?.isKeyWindow == true
+        caretOverlay.setFocused(focused)
+        updateCaret()
     }
 
     override public func layout() {

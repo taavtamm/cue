@@ -16,10 +16,15 @@ public struct SiriGlow<S: Shape>: View {
     var isPaused = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.controlActiveState) private var activeState
+
+    /// 30 frames a second is plenty for a turn every few seconds, and halves
+    /// the redraws; a window in the background holds the glow still.
+    static var frameInterval: TimeInterval { 1.0 / 30 }
 
     public var body: some View {
-        TimelineView(.animation(paused: reduceMotion || isPaused)) { timeline in
-            let still = reduceMotion || isPaused
+        let still = reduceMotion || isPaused || activeState == .inactive
+        TimelineView(.animation(minimumInterval: Self.frameInterval, paused: still)) { timeline in
             let gradient = Self.gradient(angle: Self.angle(at: timeline.date, reduceMotion: still, speed: speed))
             ZStack {
                 shape

@@ -1,13 +1,21 @@
 import SwiftUI
 
 /// The small Siri-coloured orb at the start of the Ask bar. Breathes gently
-/// (scale 1 ↔ 1.08 over 3.2 s); holds still with Reduce Motion.
+/// (scale 1 ↔ 1.08 over 3.2 s) while the agent is busy and the window is
+/// active; otherwise it rests. Holds still with Reduce Motion.
 public struct AskOrb: View {
     var diameter: CGFloat = 26
+    var breathes = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.controlActiveState) private var activeState
     @State private var breathing = false
 
-    public init(diameter: CGFloat = 26) { self.diameter = diameter }
+    public init(diameter: CGFloat = 26, breathes: Bool = true) {
+        self.diameter = diameter
+        self.breathes = breathes
+    }
+
+    private var animates: Bool { breathes && !reduceMotion && activeState != .inactive }
 
     public var body: some View {
         Circle()
@@ -20,11 +28,17 @@ public struct AskOrb: View {
             .frame(width: diameter, height: diameter)
             .scaleEffect(breathing ? 1.08 : 1)
             .opacity(breathing ? 1 : 0.85)
-            .onAppear {
-                guard !reduceMotion else { return }
-                withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) { breathing = true }
-            }
+            .onAppear { breathe(animates) }
+            .onChange(of: animates) { breathe(animates) }
             .accessibilityHidden(true)
+    }
+
+    private func breathe(_ on: Bool) {
+        if on {
+            withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) { breathing = true }
+        } else {
+            withAnimation(.easeOut(duration: 0.3)) { breathing = false }
+        }
     }
 }
 

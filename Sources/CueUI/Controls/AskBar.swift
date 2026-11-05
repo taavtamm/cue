@@ -32,7 +32,7 @@ public struct AskBar: View {
 
     public var body: some View {
         HStack(spacing: 10) {
-            AskOrb()
+            AskOrb(breathes: !activity.glowIsStill)
             field
                 .frame(height: 40)
                 .frame(maxWidth: .infinity)

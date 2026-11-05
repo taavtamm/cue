@@ -8,6 +8,13 @@ struct TimelinePanel: View {
     let session: EditorSession
     /// Restarted by Preview and on slide change (owned by `SlideBottomPanel`).
     @Binding var playheadStart: Date
+    @Environment(\.controlActiveState) private var activeState
+    /// False once a slide's animations have all finished (and none loops):
+    /// the playhead rests at the end instead of redrawing 30 times a second.
+    @State private var sweeping = true
+
+    /// Width of the label column plus the grid's spacing.
+    private static let labelColumn: CGFloat = 150 + 12
 
     var body: some View {
         let layout = session.timeline
@@ -31,10 +38,16 @@ struct TimelinePanel: View {
                         Text(row.title).font(.system(size: 11.5)).foregroundStyle(Color.white.opacity(0.8))
                             .lineLimit(1).frame(width: 150, alignment: .leading)
                         TimelineTrack(start: row.start, width: row.width, style: style(row), tint: tint(row))
-                            .overlay { playhead(layout) }
                     }
                 }
             }
+            .overlay(alignment: .topLeading) { playhead(layout) } // One playhead across every track.
+        }
+        .task(id: TimelineRun(start: playheadStart, span: layout.span, loops: layout.rows.contains(where: \.loops))) {
+            sweeping = true
+            guard !layout.rows.contains(where: \.loops) else { return }
+            try? await Task.sleep(for: .seconds(layout.span))
+            sweeping = false
         }
     }
 
@@ -49,14 +62,20 @@ struct TimelinePanel: View {
         .foregroundStyle(Color.white.opacity(0.5))
     }
 
-    /// A white line sweeping across the span, restarted by Preview.
+    /// A white line sweeping across the span, restarted by Preview. It runs
+    /// only while the slide plays live, the window is active and something
+    /// is still animating; otherwise it rests.
     private func playhead(_ layout: TimelineLayout) -> some View {
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: !session.isPlayingLive)) { context in
+        let paused = !session.isPlayingLive || activeState == .inactive || !sweeping
+        let loops = layout.rows.contains(where: \.loops)
+        return TimelineView(.animation(minimumInterval: 1 / 30, paused: paused)) { context in
             GeometryReader { geometry in
-                let elapsed = context.date.timeIntervalSince(playheadStart).truncatingRemainder(dividingBy: layout.span)
-                Rectangle().fill(Color.white).frame(width: 2)
+                let raw = context.date.timeIntervalSince(playheadStart)
+                let elapsed = loops ? raw.truncatingRemainder(dividingBy: layout.span) : min(raw, layout.span)
+                let tracks = geometry.size.width - Self.labelColumn
+                Rectangle().fill(Color.white).frame(width: 2, height: geometry.size.height)
                     .shadow(color: .white.opacity(0.8), radius: 4)
-                    .offset(x: geometry.size.width * elapsed / layout.span)
+                    .offset(x: Self.labelColumn + tracks * elapsed / layout.span)
             }
         }
         .allowsHitTesting(false)
@@ -70,4 +89,11 @@ struct TimelinePanel: View {
         let palette = [CueTheme.selection, CueTheme.violet, Color(hex: 0xFFB35E), CueTheme.successBright]
         return palette[row.id % palette.count]
     }
+}
+
+/// What restarts the playhead's sweep: Preview, a new slide, new animations.
+private struct TimelineRun: Hashable {
+    let start: Date
+    let span: TimeInterval
+    let loops: Bool
 }
