@@ -41,7 +41,7 @@ public enum XMLTreeParser {
                 if local[name] == nil { local[name] = value }
             }
             let node = XNode(name: Self.localName(elementName), attributes: local)
-            stack.last?.children.append(node)
+            stack.last?.appendChild(node)
             if stack.isEmpty { root = node }
             stack.append(node)
         }
@@ -51,7 +51,7 @@ public enum XMLTreeParser {
         }
 
         func parser(_ parser: XMLParser, foundCharacters string: String) {
-            stack.last?.text += string
+            stack.last?.appendText(string)
         }
 
         static func localName(_ name: String) -> String {

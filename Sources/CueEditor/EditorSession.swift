@@ -36,7 +36,7 @@ public final class EditorSession {
     @ObservationIgnored public var onDocumentChanged: ((EditResult) -> Void)?
     /// Where the last click was: decides what arrows and Delete do.
     public var keyFocus = EditorKeyFocus.canvas
-    @ObservationIgnored var editChain: Task<Bool, Never>?
+    @ObservationIgnored var editChain: Task<Void, Never>?
     /// Callers of `finishInteractions()` waiting for the page's final text.
     @ObservationIgnored var inlineCommitWaiters: [CheckedContinuation<Void, Never>] = []
     @ObservationIgnored var notesDebounce: [Int: Task<Void, Never>] = [:]
@@ -116,7 +116,7 @@ public final class EditorSession {
 
     // MARK: Ask bar
 
-    /// Queues a request for Claude (served over MCP in milestone 7).
+    /// Queues a request for Claude; a connected session takes it over MCP.
     @discardableResult
     public func ask(_ text: String) -> AskRequest? {
         guard let request = askQueue.enqueue(text, slide: slide, selection: selection?.path) else { return nil }

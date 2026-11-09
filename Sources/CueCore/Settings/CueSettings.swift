@@ -27,8 +27,9 @@ public final class CueSettings {
     /// Font for new text boxes and new decks.
     public var defaultFontFamily: String { didSet { store(defaultFontFamily, .fontFamily) } }
     public var defaultFontSize: Double { didSet { clampAndStore(\.defaultFontSize, 8...400, .fontSize) } }
-    /// Keep Claude's edits without asking (Settings › Claude). Off by default:
-    /// every edit waits for Accept or Undo.
+    /// Keep Claude's edits without asking (Settings › Claude). On by default:
+    /// Claude's edits are kept immediately, each still undoable on its own.
+    /// Turned off, every edit waits for Accept or Undo.
     public var autoAcceptClaudeEdits: Bool { didSet { store(autoAcceptClaudeEdits, .autoAcceptClaude) } }
 
     @ObservationIgnored private let defaults: UserDefaults

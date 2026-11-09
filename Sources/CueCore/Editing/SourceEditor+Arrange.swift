@@ -32,7 +32,7 @@ extension SourceEditor {
             return SourceEdit([SourcePatch(range: location.range, replacement: "style=\"\(unescaped)\"")])
         }
         guard let startTag = element.startTag else { throw EditError.elementHasNoSource }
-        let offset = insertionPoint(inStartTag: startTag)
+        let offset = insertionPoint(of: element, startTag: startTag)
         let precededBySpace = text.unit(at: offset - 1)?.isWhitespace == true
         let attribute = "style=\"\(unescaped)\""
         return SourceEdit([.insert(precededBySpace ? attribute + " " : " " + attribute, at: offset)])

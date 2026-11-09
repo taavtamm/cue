@@ -22,6 +22,12 @@ struct StyleDeclarations {
         declarations = Self.scan(text)
     }
 
+    /// Each declaration as written (`prop: value`, trimmed, without its `;`).
+    /// Unlike splitting on `;`, this keeps `font-family: &quot;A&quot;, B` whole.
+    var sourceTexts: [(property: String, text: String)] {
+        declarations.map { ($0.property, String(text[$0.range])) }
+    }
+
     /// Patches that set `property` to `value`, or remove it when `value` is nil.
     func patches(setting property: String, to value: String?) -> [(range: Range<Int>, replacement: String)] {
         let existing = declarations.last { $0.property.caseInsensitiveCompare(property) == .orderedSame }

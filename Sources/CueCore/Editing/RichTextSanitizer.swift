@@ -69,9 +69,11 @@ public enum RichTextSanitizer {
     /// Inline style with only declarations that can't load or run anything.
     static func safeStyle(_ style: String) -> String? {
         let unsafe = ["url(", "expression", "javascript:", "@import", "behavior", "-moz-binding"]
-        let kept = style.split(separator: ";").map { $0.trimmingCharacters(in: .whitespaces) }.filter { declaration in
+        // The value is still escaped (`&quot;`), so split with the entity- and
+        // quote-aware scanner rather than on every `;`.
+        let kept = StyleDeclarations(style).sourceTexts.map(\.text).filter { declaration in
             let lower = declaration.lowercased()
-            return declaration.contains(":") && !unsafe.contains(where: lower.contains)
+            return !unsafe.contains(where: lower.contains)
         }
         return kept.isEmpty ? nil : kept.joined(separator: "; ") + ";"
     }

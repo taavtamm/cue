@@ -15,6 +15,8 @@ public final class ThumbnailStore {
     @ObservationIgnored private let window: OffscreenRenderWindow
     @ObservationIgnored private var pending: [Int] = []
     @ObservationIgnored private var drawing: Task<Void, Never>?
+    /// Which `drawing` task is current, so an old one can't clear its handle.
+    @ObservationIgnored private var drawGeneration = 0
     @ObservationIgnored private var slideCount = 0
     /// The slides' identities when they were last drawn, to follow moves.
     @ObservationIgnored private var slideIDs: [String] = []
@@ -73,9 +75,12 @@ public final class ThumbnailStore {
     private func redraw(_ slides: [Int]) {
         pending.append(contentsOf: slides.filter { !pending.contains($0) })
         guard drawing == nil else { return }
+        drawGeneration += 1
+        let generation = drawGeneration
         drawing = Task { [weak self] in
             await self?.drawPending()
-            self?.drawing = nil
+            // A cancelled task finishing late mustn't clear its successor's handle.
+            if self?.drawGeneration == generation { self?.drawing = nil }
         }
     }
 
