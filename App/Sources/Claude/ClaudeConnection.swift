@@ -16,7 +16,9 @@ final class ClaudeConnection {
     private(set) var clients: [MCPConnectionInfo] = []
     /// Clients waiting for Allow / Don't Allow.
     private(set) var awaitingApproval: [String] = []
-    let approvals = ClientApproval()
+    @ObservationIgnored let approvals = ClientApproval()
+    /// The remembered answers, observed, so Settings › Claude updates on Revoke.
+    private(set) var rememberedClients: [(client: String, decision: ClientApproval.Decision)] = []
     /// What the agent is doing right now, for the Ask bar.
     let activity = ClaudeActivity()
     /// The deck Claude created or opened last: its tools keep working on it
@@ -37,6 +39,7 @@ final class ClaudeConnection {
 
     func start() {
         guard listener == nil else { return }
+        rememberedClients = approvals.remembered
         let host = MCPHostController(
             mailbox: mailbox, approvals: approvals,
             frontSession: { ClaudeConnection.shared.frontSession() },
@@ -68,9 +71,13 @@ final class ClaudeConnection {
     func answer(_ client: String, allow: Bool) {
         approvals.set(allow ? .approved : .denied, for: client)
         awaitingApproval.removeAll { $0 == client }
+        rememberedClients = approvals.remembered
     }
 
-    func revoke(_ client: String) { approvals.set(.pending, for: client) }
+    func revoke(_ client: String) {
+        approvals.set(.pending, for: client)
+        rememberedClients = approvals.remembered
+    }
 
     // MARK: Ask bar
 
@@ -79,12 +86,12 @@ final class ClaudeConnection {
         Task {
             let posted = await mailbox.post(request.text, slide: request.slide + 1, selection: request.selection)
             asks[posted.id] = (session, request.id)
-            guard let sampler = await server?.connections.samplingServer(), let server else { return }
-            // The client can run a model for Cue: serve it now instead of waiting for next_request.
-            guard let taken = await mailbox.next(timeout: .zero), taken.id == posted.id else { return }
-            let client = clients.first(where: \.supportsSampling)?.client ?? "claude"
+            guard let server, let sampler = await server.connections.samplingServer(host: server.host) else { return }
+            // An approved client can run a model for Cue: serve it now instead of waiting for next_request.
+            guard let taken = await mailbox.take(waiting: posted.id) else { return }
             do {
-                let summary = try await AskSampler.serve(taken, server: sampler, host: server.host, client: client)
+                let summary = try await AskSampler.serve(taken, server: sampler.server, host: server.host,
+                                                         client: sampler.client)
                 try await mailbox.complete(taken.id, summary: summary)
             } catch {
                 try? await mailbox.complete(taken.id, summary: "Couldn't do it: \(error.localizedDescription)")

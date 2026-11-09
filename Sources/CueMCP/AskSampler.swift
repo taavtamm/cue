@@ -16,6 +16,8 @@ public enum AskSampler {
     /// Runs the request and returns the summary to show the user.
     public static func serve(_ request: RequestMailbox.Request, server: Server, host: DeckHost,
                              client: String) async throws -> String {
+        // The deck goes to this client and its plan runs: only if the user allowed it.
+        if let refusal = await CueMCPServer.refusal(for: client, host: host) { throw CueMCPError.invalid(refusal) }
         guard let document = await host.currentDocument() else { throw CueMCPError.noDeck }
         let prompt = try await self.prompt(for: request, document: document, host: host)
         let result = try await server.requestSampling(

@@ -10,7 +10,17 @@ struct SocketTests {
     /// Unix socket paths must be short (104 bytes), so not the long temp folders.
     private func socketPath() -> String { "/tmp/cue-test-\(UUID().uuidString.prefix(8)).sock" }
 
-    private var helper: URL { Decks.repoRoot.appending(path: ".build/mcp/debug/cue-mcp") }
+    /// The helper `swift build` put beside this test bundle, whatever the build folder.
+    private var helper: URL {
+        let arguments = CommandLine.arguments
+        let bundle = arguments.firstIndex(of: "--test-bundle-path").map { arguments[$0 + 1] }
+            ?? Bundle.allBundles.first { $0.bundleURL.pathExtension == "xctest" }?.bundlePath
+        guard var folder = bundle.map({ URL(filePath: $0) }) else {
+            return Decks.repoRoot.appending(path: ".build/debug/cue-mcp")
+        }
+        while folder.pathExtension != "xctest", folder.pathComponents.count > 1 { folder.deleteLastPathComponent() }
+        return folder.deletingLastPathComponent().appending(path: "cue-mcp")
+    }
 
     @Test func helperSpeaksMCPThroughTheSocket() async throws {
         try #require(FileManager.default.isExecutableFile(atPath: helper.path), "build cue-mcp first")

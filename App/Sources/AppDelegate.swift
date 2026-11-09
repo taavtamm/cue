@@ -57,7 +57,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ClaudeConnection.shared.frontSession = { [weak self] in
             guard let decks = self?.deckWindows else { return nil }
             // The deck Claude created or opened, while it's open; else the front-most one.
-            if let target = ClaudeConnection.shared.target, let deck = decks.first(where: { $0.deck.fileURL == target }) {
+            if let target = ClaudeConnection.shared.target, let deck = decks.first(where: { $0.deck.fileURL.deckIdentity == target.deckIdentity }) {
                 return deck.session
             }
             let key = decks.first { $0.window?.isKeyWindow == true } ?? decks.first { $0.window?.isMainWindow == true }
@@ -91,7 +91,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func review(_ decks: [DeckWindowController]) {
         guard let deck = decks.first else { return NSApp.reply(toApplicationShouldTerminate: true) }
         deck.askToSave { [weak self] mayClose in
-            guard mayClose, let self else { return NSApp.reply(toApplicationShouldTerminate: false) }
+            guard mayClose, let self else {
+                // The quit is off: decks answered "Don't Save" ask again next time.
+                self?.deckWindows.forEach { $0.keepsChanges() }
+                return NSApp.reply(toApplicationShouldTerminate: false)
+            }
             self.review(Array(decks.dropFirst()))
         }
     }
@@ -124,34 +128,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Opens a deck in its own window, optionally going straight into the show.
     func open(_ url: URL, presentAt slide: Int? = nil) {
+        let url = url.deckIdentity
         // PowerPoint, Keynote, OpenDocument and PDF become an HTML deck first.
         if ImportService.needsImport(url) {
             imports.open(url) { [weak self] html, report in
                 self?.open(html, presentAt: slide)
-                let window = self?.deckWindows.first { $0.deck.fileURL == html }?.window
+                let window = self?.window(for: html)?.window
                 if let report { self?.imports.showReport(report, over: window) }
             }
             return
         }
-        if let existing = deckWindows.first(where: { $0.deck.fileURL == url }) {
-            existing.showWindow(nil)
-            return
-        }
         do {
-            let document = try DeckDocument(contentsOf: url)
-            let controller = DeckWindowController(deck: document)
-            controller.onClose = { [weak self, weak controller] in
-                guard let self else { return }
-                deckWindows.removeAll { $0 === controller }
-                if deckWindows.isEmpty { showWelcome(nil) } // The last deck closed: back to Welcome.
-            }
-            deckWindows.append(controller)
+            let controller = try window(opening: url)
             controller.showWindow(nil)
-            welcome.close()
-            NSDocumentController.shared.noteNewRecentDocumentURL(url)
             if let slide { controller.present(fromSlide: slide) }
         } catch {
             DeckOpener.reportFailure(opening: url, error: error)
         }
+    }
+
+    /// The window showing the deck at `url`, however the path is spelled.
+    func window(for url: URL) -> DeckWindowController? {
+        let url = url.deckIdentity
+        return deckWindows.first { $0.deck.fileURL.deckIdentity == url }
+    }
+
+    /// The deck's window, made if it isn't open yet. Throws instead of
+    /// showing an alert, for callers (Claude) that report errors themselves.
+    func window(opening url: URL) throws -> DeckWindowController {
+        if let existing = window(for: url) { return existing }
+        let document = try DeckDocument(contentsOf: url.deckIdentity)
+        let controller = DeckWindowController(deck: document)
+        controller.onClose = { [weak self, weak controller] in
+            guard let self else { return }
+            deckWindows.removeAll { $0 === controller }
+            if deckWindows.isEmpty { showWelcome(nil) } // The last deck closed: back to Welcome.
+        }
+        deckWindows.append(controller)
+        welcome.close()
+        NSDocumentController.shared.noteNewRecentDocumentURL(document.fileURL)
+        return controller
     }
 }

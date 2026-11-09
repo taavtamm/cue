@@ -62,7 +62,11 @@ public final class CueMCPServer: Sendable {
         let host = host
         await server.withMethodHandler(ListTools.self) { _ in ListTools.Result(tools: ToolCatalog.tools) }
         await server.withMethodHandler(CallTool.self) { params in
-            let name = await client.name
+            // Before `initialize` there's no name to approve, and approving the
+            // placeholder would approve every client that hasn't said who it is.
+            guard let name = await client.known else {
+                return CallTool.Result(content: [.text("Cue: send initialize before calling tools.")], isError: true)
+            }
             if let refusal = await Self.refusal(for: name, host: host) {
                 return CallTool.Result(content: [.text(refusal)], isError: true)
             }
@@ -77,7 +81,7 @@ public final class CueMCPServer: Sendable {
             ListResourceTemplates.Result(templates: ResourceCatalog.templates)
         }
         await server.withMethodHandler(ReadResource.self) { params in
-            let name = await client.name
+            guard let name = await client.known else { throw MCPError.invalidRequest("Send initialize first.") }
             if let refusal = await Self.refusal(for: name, host: host) { throw MCPError.invalidRequest(refusal) }
             return try await ResourceCatalog.read(params.uri, runner: ToolRunner(host: host, client: name))
         }
@@ -95,6 +99,7 @@ public final class CueMCPServer: Sendable {
 
 /// The connected client's name, known once it has sent `initialize`.
 actor ClientName {
-    private(set) var name = "an MCP client"
-    func set(_ value: String) { name = value }
+    /// The name from `initialize`; nil until then.
+    private(set) var known: String?
+    func set(_ value: String) { known = value }
 }

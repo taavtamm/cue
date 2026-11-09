@@ -43,9 +43,13 @@ public final class MCPSocketListener: @unchecked Sendable {
     }
 
     public func stop() {
-        listener?.cancel()
+        // Only the copy that bound the socket removes it: a second Cue that
+        // found it live must leave the first one's socket alone.
+        if let listener {
+            listener.cancel()
+            try? FileManager.default.removeItem(atPath: path)
+        }
         listener = nil
-        try? FileManager.default.removeItem(atPath: path)
         onState?(.stopped)
     }
 

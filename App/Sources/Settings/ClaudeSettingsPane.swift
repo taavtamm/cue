@@ -42,9 +42,9 @@ struct ClaudeSettingsPane: View {
                     get: { !settings.autoAcceptClaudeEdits }, set: { settings.autoAcceptClaudeEdits = !$0 }
                 ))
             }
-            if !connection.approvals.remembered.isEmpty {
+            if !connection.rememberedClients.isEmpty {
                 SettingsGroup("Clients") {
-                    ForEach(connection.approvals.remembered, id: \.client) { entry in
+                    ForEach(connection.rememberedClients, id: \.client) { entry in
                         SettingsRow(entry.client, detail: entry.decision == .approved ? "Allowed" : "Not allowed") {
                             Button("Revoke") { connection.revoke(entry.client) }.buttonStyle(.cue(height: 28))
                         }

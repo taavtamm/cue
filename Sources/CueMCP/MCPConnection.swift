@@ -36,8 +36,12 @@ public actor MCPConnections {
         onChange?(all)
     }
 
-    /// A connected client that can sample, for the Ask bar.
-    public func samplingServer() -> Server? {
-        all.first(where: \.supportsSampling).flatMap { servers[$0.id] }
+    /// A connected client that can sample and that the user approved, for the Ask bar.
+    public func samplingServer(host: DeckHost) async -> (server: Server, client: String)? {
+        for info in all where info.supportsSampling {
+            guard await host.approval(for: info.client) == .approved, let server = servers[info.id] else { continue }
+            return (server, info.client)
+        }
+        return nil
     }
 }

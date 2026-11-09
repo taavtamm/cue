@@ -51,13 +51,26 @@ public actor RequestMailbox {
         lastPoll = Date()
         if let waiting = requests.first(where: { $0.status == .waiting }) { return take(waiting.id) }
         let key = UUID()
-        return await withCheckedContinuation { continuation in
-            waiters[key] = continuation
-            Task { [weak self] in
-                try? await Task.sleep(for: timeout)
-                await self?.expire(key)
+        // A call Claude abandons (Esc, quit) must not keep a place in line,
+        // or the next request would be handed to nobody.
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                guard !Task.isCancelled else { return continuation.resume(returning: nil) }
+                waiters[key] = continuation
+                Task { [weak self] in
+                    try? await Task.sleep(for: timeout)
+                    await self?.expire(key)
+                }
             }
+        } onCancel: {
+            Task { [weak self] in await self?.expire(key) }
         }
+    }
+
+    /// Takes one particular request, if it's still waiting (sampling serves the request it just posted).
+    public func take(waiting id: String) -> Request? {
+        guard requests.contains(where: { $0.id == id && $0.status == .waiting }) else { return nil }
+        return take(id)
     }
 
     public func complete(_ id: String, summary: String?) throws {

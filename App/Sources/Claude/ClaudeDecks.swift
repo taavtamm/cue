@@ -31,7 +31,15 @@ enum ClaudeDecks {
         return try show(url)
     }
 
+    /// Only presentations: Claude must not read or rewrite other files
+    /// (dotfiles, keys) by opening them as a one-slide deck.
     static func open(_ url: URL) async throws -> DeckSummary {
+        let url = url.deckIdentity
+        var isFolder: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isFolder), !isFolder.boolValue,
+              PresentationTypes.extensions.contains(url.pathExtension.lowercased()) else {
+            throw CueMCPError.invalid("Cue opens presentations only (\(PresentationTypes.extensions.joined(separator: ", "))).")
+        }
         let html = ImportService.needsImport(url) ? try await ImportService().prepare(url).htmlURL : url
         return try show(html)
     }
@@ -45,12 +53,17 @@ enum ClaudeDecks {
 
     /// Opens (or finds) the deck's window, brings it forward and makes it Claude's target.
     private static func show(_ url: URL) throws -> DeckSummary {
-        app?.open(url)
-        guard let controller = app?.deckWindows.first(where: { $0.deck.fileURL == url }) else {
-            throw CueMCPError.invalid("Cue couldn't open \(url.lastPathComponent).")
+        guard let app else { throw CueMCPError.noDeck }
+        let controller: DeckWindowController
+        do {
+            controller = try app.window(opening: url)
+        } catch {
+            // Back to Claude, not a modal alert in the user's face.
+            throw CueMCPError.invalid("Cue couldn't open \(url.lastPathComponent): \(error.localizedDescription)")
         }
+        controller.showWindow(nil)
         controller.window?.orderFrontRegardless()
-        ClaudeConnection.shared.target = url
+        ClaudeConnection.shared.target = controller.deck.fileURL
         return summary(of: controller)
     }
 

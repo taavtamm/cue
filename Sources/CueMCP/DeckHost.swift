@@ -12,6 +12,11 @@ public protocol DeckHost: Sendable {
     func selection() async -> SelectionInfo?
     /// Applies the operations as one change set from `client`. Not saved.
     func apply(_ operations: [EditOperation], summary: String, client: String, slide: Int?) async throws -> ChangeSet
+    /// The same, refused when the deck is no longer `source`: the operations
+    /// were planned on it (element paths, slide numbers), and a change by the
+    /// user, another call or a different deck window would make them land wrong.
+    func apply(_ operations: [EditOperation], summary: String, client: String, slide: Int?,
+               plannedOn source: String) async throws -> ChangeSet
     func changes() async -> [ChangeSet]
     func accept(_ id: String) async throws
     func revert(_ id: String) async throws
@@ -82,19 +87,10 @@ public struct SelectionInfo: Sendable, Codable, Equatable {
     }
 }
 
-public enum CueMCPError: Error, LocalizedError, Equatable {
-    case noDeck
-    case notApproved(String)
-    case denied(String)
-    case invalid(String)
-
-    public var errorDescription: String? {
-        switch self {
-        case .noDeck: "No deck is open in Cue. Ask the user to open one."
-        case .notApproved(let client):
-            "Waiting for approval in Cue: the user needs to allow “\(client)” to edit decks. Try again in a moment."
-        case .denied(let client): "The user doesn't allow “\(client)” to edit decks in Cue (Settings › Claude)."
-        case .invalid(let message): message
-        }
+public extension DeckHost {
+    func apply(_ operations: [EditOperation], summary: String, client: String, slide: Int?,
+               plannedOn source: String) async throws -> ChangeSet {
+        guard await currentDocument()?.source == source else { throw CueMCPError.deckChanged }
+        return try await apply(operations, summary: summary, client: client, slide: slide)
     }
 }

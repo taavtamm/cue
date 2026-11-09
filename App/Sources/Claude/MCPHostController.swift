@@ -31,6 +31,11 @@ final class MCPHostController: DeckHost, @unchecked Sendable {
         try await applyOnMain(operations, summary: summary, client: client, slide: slide)
     }
 
+    func apply(_ operations: [EditOperation], summary: String, client: String, slide: Int?,
+               plannedOn source: String) async throws -> ChangeSet {
+        try await applyOnMain(operations, summary: summary, client: client, slide: slide, plannedOn: source)
+    }
+
     func changes() async -> [ChangeSet] { await MainActor.run { frontSession()?.claudeChanges.all ?? [] } }
 
     func accept(_ id: String) async throws { try await acceptOnMain(id) }
@@ -53,8 +58,11 @@ final class MCPHostController: DeckHost, @unchecked Sendable {
     }
 
     @MainActor private func applyOnMain(_ operations: [EditOperation], summary: String, client: String,
-                                        slide: Int?) async throws -> ChangeSet {
-        try await session().applyClaudeChange(operations, summary: summary, client: client, slide: slide,
+                                        slide: Int?, plannedOn source: String? = nil) async throws -> ChangeSet {
+        let session = try session()
+        // Checked and applied in one main-actor step, on the same session.
+        if let source, session.document.source != source { throw CueMCPError.deckChanged }
+        return try await session.applyClaudeChange(operations, summary: summary, client: client, slide: slide,
                                               autoAccept: CueSettings.shared.autoAcceptClaudeEdits)
     }
 

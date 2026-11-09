@@ -36,7 +36,18 @@ struct DeckOutline: Encodable {
         let raw = (source as NSString).substring(with: NSRange(location: range.start, length: range.length))
         let text = ImagePlaceholders.shorten(raw)
         guard text.count > limit else { return text }
-        return String(text.prefix(limit)) + "\n<!-- … cut at \(limit) characters; the slide is longer. -->"
+        return String(text.prefix(limit)) + "\n" + cutMarker + "\(limit) characters; the slide is longer. -->"
+    }
+
+    /// Starts the note on HTML cut short for Claude.
+    static let cutMarker = "<!-- … cut at "
+
+    /// Refuses HTML that came from a cut read: writing it back would drop
+    /// everything past the cut.
+    static func refuseCut(_ html: String) throws {
+        guard html.contains(cutMarker) else { return }
+        throw CueMCPError.invalid("That HTML was cut short when you read it, so writing it back would lose the rest. "
+            + "Change smaller parts instead (edit_element, set_deck_style).")
     }
 }
 

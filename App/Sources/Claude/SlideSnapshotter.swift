@@ -10,8 +10,21 @@ final class SlideSnapshotter {
     private var window: OffscreenRenderWindow?
     /// The source the renderer has loaded, so repeat calls skip the reload.
     private var loadedSource: String?
+    /// One picture at a time: the renderer is shared, and Claude may ask for
+    /// several slides at once.
+    private var previous: Task<Void, Never>?
 
     func png(of document: DeckDocument, slide: Int, build: Int?) async throws -> Data {
+        let before = previous
+        let task = Task { @MainActor in
+            await before?.value
+            return try await self.picture(of: document, slide: slide, build: build)
+        }
+        previous = Task { _ = try? await task.value }
+        return try await task.value
+    }
+
+    private func picture(of document: DeckDocument, slide: Int, build: Int?) async throws -> Data {
         let renderer = try await prepared(for: document)
         renderer.show(ShowPosition(slide: slide, build: build ?? 0), finished: build == nil)
         try await Task.sleep(for: .milliseconds(400)) // Fonts, images and the build state settle.

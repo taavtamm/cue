@@ -19,7 +19,8 @@ extension ToolRunner {
         let (operations, slide, fallback) = try plan(name, args, document, facts)
         var summary = args.string("summary") ?? fallback
         if let fetchedFrom { summary += " (image from \(fetchedFrom))" }
-        let change = try await host.apply(operations, summary: summary, client: client, slide: slide)
+        let change = try await host.apply(operations, summary: summary, client: client, slide: slide,
+                                          plannedOn: document.source)
         return try json(ChangeSetReport(change))
     }
 
@@ -32,6 +33,7 @@ extension ToolRunner {
             return (try elementEdits(path, args, document), slide(containing: path, document), "Edited an element")
         case "replace_slide_html":
             let index = try args.slideIndex(in: facts)
+            try DeckOutline.refuseCut(try args.requiredString("html"))
             let html = try ImagePlaceholders.restore(try args.requiredString("html"), from: document.source)
             return ([.replaceSlide(index, html: html)], index, "Replaced slide \(index + 1)")
         case "add_slide":

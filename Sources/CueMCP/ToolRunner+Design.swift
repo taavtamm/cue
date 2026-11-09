@@ -83,6 +83,7 @@ extension ToolRunner {
         case "add_font":
             return ([.appendToHead(try Self.fontLink(args))], nil, "Added the font \(try args.requiredString("family"))")
         case "replace_deck_html":
+            try DeckOutline.refuseCut(try args.requiredString("html"))
             let html = try BlockPlaceholders.restoreAll(try args.requiredString("html"), from: document.source)
             var check = document
             try check.replaceSource(html)
@@ -94,6 +95,7 @@ extension ToolRunner {
             }
             return ([.replaceDocument(html)], nil, "Redesigned the deck")
         case "set_head_html":
+            try DeckOutline.refuseCut(try args.requiredString("html"))
             let html = try BlockPlaceholders.restoreAll(try args.requiredString("html"), from: document.source)
             return ([.setHeadHTML(html)], nil, "Changed the deck's head")
         default:
@@ -133,7 +135,7 @@ extension ToolRunner {
     }
 
     static func capped(_ text: String, limit: Int = 300_000) -> String {
-        text.count <= limit ? text : String(text.prefix(limit)) + "\n<!-- … cut at \(limit) characters. -->"
+        text.count <= limit ? text : String(text.prefix(limit)) + "\n" + DeckOutline.cutMarker + "\(limit) characters. -->"
     }
 
     static func slice(_ source: String, _ range: SourceRange) -> String {

@@ -50,6 +50,14 @@ extension DeckWindowController: NSMenuItemValidation {
         return false
     }
 
+    /// Undoes a "Don't Save" whose quit was cancelled: the deck stays open,
+    /// so its changes must be asked about again.
+    func keepsChanges() {
+        guard discardsChanges else { return }
+        discardsChanges = false
+        window?.isDocumentEdited = session.isDirty
+    }
+
     /// Asks Save / Don't Save / Cancel for this deck. Calls back with true
     /// when the window may go (saved or discarded), false when cancelled.
     func askToSave(_ done: @escaping (Bool) -> Void) {
