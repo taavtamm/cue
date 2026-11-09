@@ -89,14 +89,14 @@ struct RemoteResourceTests {
         #expect(NetworkRequest.pending(from: document.remoteResources, allowed: [], denied: []) == nil)
     }
 
-    @Test func sidecarPermissionsDefaultToOffAndSurviveOldFiles() throws {
+    @Test func grantPermissionsDefaultToOffAndSurviveOldFiles() throws {
         let old = Data(#"{"allowedHosts":["fonts.gstatic.com"]}"#.utf8)
-        let sidecar = try JSONDecoder().decode(CueSidecar.self, from: old)
-        #expect(sidecar.allowedHosts == ["fonts.gstatic.com"])
-        #expect(sidecar.permissions == .none)
-        var changed = sidecar
+        let grants = try JSONDecoder().decode(DeckGrants.self, from: old)
+        #expect(grants.allowedHosts == ["fonts.gstatic.com"])
+        #expect(grants.permissions == .none)
+        var changed = grants
         changed.permissions.camera = true
-        let roundTrip = try JSONDecoder().decode(CueSidecar.self, from: JSONEncoder().encode(changed))
+        let roundTrip = try JSONDecoder().decode(DeckGrants.self, from: JSONEncoder().encode(changed))
         #expect(roundTrip.permissions.camera && !roundTrip.permissions.microphone)
     }
 }

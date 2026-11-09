@@ -7,8 +7,9 @@ import WebKit
 /// user allowed them for this deck), and modal dialogs that would freeze a show.
 @MainActor
 final class SandboxPolicy: NSObject, WKNavigationDelegate, WKUIDelegate {
-    /// Called when the page's content process dies, so the renderer can reload.
-    var onContentProcessTerminated: (() -> Void)?
+    /// Called when a page's content process dies, so the renderer can reload.
+    /// Passes the web view, since an older one being torn down may die too.
+    var onContentProcessTerminated: ((WKWebView) -> Void)?
     var onDidFinishLoad: (() -> Void)?
     var onRefusal: ((SandboxRefusal) -> Void)?
     /// Set by the renderer before each load.
@@ -48,7 +49,7 @@ final class SandboxPolicy: NSObject, WKNavigationDelegate, WKUIDelegate {
     }
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
-        onContentProcessTerminated?()
+        onContentProcessTerminated?(webView)
     }
 
     // MARK: Windows and permissions

@@ -2,7 +2,7 @@ import Foundation
 
 extension CueSidecar {
     /// Loads the sidecar, applies `change`, and saves it, so separate parts of
-    /// Cue (display roles, network choices) never overwrite each other's keys.
+    /// Cue (display roles, rehearsal timings) never overwrite each other's keys.
     ///
     /// A sidecar that can't be read is never replaced: the error is thrown and
     /// the file stays as it is. Keys this version of Cue doesn't know (a newer

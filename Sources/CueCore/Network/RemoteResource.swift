@@ -14,12 +14,13 @@ public struct RemoteResource: Sendable, Equatable, Hashable, Codable {
         self.origin = origin
     }
 
-    /// The host of an http(s) or ws(s) URL, or nil for anything local.
+    /// The host of an http(s) URL, or nil for anything local. Not ws(s):
+    /// those stay blocked even for allowed hosts, so there is nothing to ask.
     public static func host(ofURL text: String) -> String? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         let lower = trimmed.lowercased()
         let isProtocolRelative = lower.hasPrefix("//")
-        let isRemote = ["http://", "https://", "ws://", "wss://"].contains { lower.hasPrefix($0) }
+        let isRemote = ["http://", "https://"].contains { lower.hasPrefix($0) }
         guard isRemote || isProtocolRelative else { return nil }
         let absolute = isProtocolRelative ? "https:" + trimmed : trimmed
         guard let host = URLComponents(string: absolute)?.host, !host.isEmpty else { return nil }

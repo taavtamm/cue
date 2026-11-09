@@ -49,7 +49,7 @@ struct ServingTests {
         let filters = rules.compactMap { ($0["trigger"] as? [String: String])?["url-filter"] }
         #expect(filters.first == ".*")
         #expect(filters.contains("^cue-deck:"))
-        #expect(filters.contains("^https://fonts\\.gstatic\\.com[:/]"))
+        #expect(filters.contains("^https://fonts\\.gstatic\\.com/"))
         #expect(!NetworkRules.json(allowedHosts: []).contains("https"))
     }
 }

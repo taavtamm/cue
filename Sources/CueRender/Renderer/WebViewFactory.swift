@@ -30,6 +30,7 @@ enum WebViewFactory {
         let world = BridgeScript.world
         content.add(rules)
         content.addUserScript(PageGuardScript.userScript)
+        content.addUserScript(BridgeScript.earlyUserScript(in: world))
         content.add(messages, contentWorld: world, name: CueBridge.handlerName)
         content.addUserScript(BridgeScript.userScript(in: world))
         content.addUserScript(configureScript(source: source, surface: surface, world: world))

@@ -60,7 +60,7 @@ enum PptxTextXML {
     /// `rgb(…)` / `rgba(…)` as a solid fill with alpha.
     static func fill(_ css: String) -> String {
         guard let colour = CSSColour(css) else { return "" }
-        let alpha = colour.alpha < 1 ? "<a:alpha val=\"\(Int((colour.alpha * 100_000).rounded()))\"/>" : ""
+        let alpha = colour.alpha < 1 ? "<a:alpha val=\"\(OOXMLNumber.percent(colour.alpha))\"/>" : ""
         return "<a:solidFill><a:srgbClr val=\"\(colour.hex)\">\(alpha)</a:srgbClr></a:solidFill>"
     }
 
@@ -84,9 +84,9 @@ struct CSSColour: Equatable {
     init?(_ css: String) {
         let numbers = css.split { !"0123456789.".contains($0) }.compactMap { Double($0) }
         guard css.hasPrefix("rgb"), numbers.count >= 3 else { return nil }
-        red = Int(numbers[0].rounded())
-        green = Int(numbers[1].rounded())
-        blue = Int(numbers[2].rounded())
+        red = OOXMLNumber.int(numbers[0], in: 0...255)
+        green = OOXMLNumber.int(numbers[1], in: 0...255)
+        blue = OOXMLNumber.int(numbers[2], in: 0...255)
         alpha = numbers.count >= 4 ? min(1, max(0, numbers[3])) : 1
     }
 
