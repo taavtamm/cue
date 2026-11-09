@@ -35,14 +35,16 @@ public struct ZipArchive: Sendable {
 
     public func data(for entry: ZipEntry) throws -> Data {
         if entry.isEncrypted { throw ZipError.encrypted(entry.path) }
+        guard entry.uncompressedSize <= ZipLimits.maxEntrySize else { throw ZipError.tooLarge(entry.path) }
         let start = try localDataOffset(of: entry)
-        let (end, overflow) = start.addingReportingOverflow(Int(clamping: entry.compressedSize))
+        guard let length = Int(exactly: entry.compressedSize) else { throw ZipError.truncated }
+        let (end, overflow) = start.addingReportingOverflow(length)
         guard !overflow, end <= data.count else { throw ZipError.truncated }
         let raw = data.subdata(in: start..<end)
         let bytes: Data
         switch entry.method {
         case 0: bytes = raw
-        case 8: bytes = try Inflate.raw(raw, expectedSize: Int(entry.uncompressedSize))
+        case 8: bytes = try Inflate.raw(raw, expectedSize: Int(entry.uncompressedSize), path: entry.path)
         default: throw ZipError.unsupportedMethod(entry.method, entry.path)
         }
         guard CRC32.checksum(bytes) == entry.crc32 else { throw ZipError.checksumMismatch(entry.path) }
@@ -57,10 +59,11 @@ public struct ZipArchive: Sendable {
 
     /// The local header has its own name and extra lengths; data follows them.
     private func localDataOffset(of entry: ZipEntry) throws -> Int {
-        let header = Int(entry.localHeaderOffset)
-        guard header + 30 <= data.count, data.uint32(at: header) == 0x0403_4B50 else {
+        guard let header = try? ZipCentralDirectory.withinData(entry.localHeaderOffset, length: 30, of: data),
+              data.uint32(at: header) == 0x0403_4B50 else {
             throw ZipError.badLocalHeader(entry.path)
         }
+        // At most data.count + 30 + 2 × 65535, far from overflowing Int.
         return header + 30 + Int(data.uint16(at: header + 26)) + Int(data.uint16(at: header + 28))
     }
 }

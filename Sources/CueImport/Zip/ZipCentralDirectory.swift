@@ -28,22 +28,36 @@ enum ZipCentralDirectory {
         if count == 0xFFFF || size == 0xFFFF_FFFF || offset == 0xFFFF_FFFF {
             let locator = end - 20
             guard locator >= 0, data.uint32(at: locator) == zip64LocatorSignature else { throw ZipError.truncated }
-            let record = Int(data.uint64(at: locator + 8))
-            guard record + 56 <= data.count, data.uint32(at: record) == zip64EndSignature else {
-                throw ZipError.truncated
-            }
-            count = Int(data.uint64(at: record + 32))
-            size = Int(data.uint64(at: record + 40))
-            offset = Int(data.uint64(at: record + 48))
+            let record = try withinData(data.uint64(at: locator + 8), length: 56, of: data)
+            guard data.uint32(at: record) == zip64EndSignature else { throw ZipError.truncated }
+            count = try int(data.uint64(at: record + 32))
+            size = try int(data.uint64(at: record + 40))
+            offset = try int(data.uint64(at: record + 48))
         }
-        guard offset >= 0, size >= 0, offset + size <= data.count else { throw ZipError.truncated }
+        let (directoryEnd, overflow) = offset.addingReportingOverflow(size)
+        guard !overflow, directoryEnd <= data.count else { throw ZipError.truncated }
+        // Each record takes at least 46 bytes, so a larger count can't be real.
+        guard count <= size / ZipLimits.minDirectoryRecord else { throw ZipError.truncated }
         return Location(offset: offset, size: size, count: count)
+    }
+
+    /// `value` as an offset where `length` bytes still fit inside `data`.
+    static func withinData(_ value: UInt64, length: Int, of data: Data) throws -> Int {
+        let start = try int(value)
+        guard start <= data.count - length else { throw ZipError.truncated }
+        return start
+    }
+
+    private static func int(_ value: UInt64) throws -> Int {
+        guard let result = Int(exactly: value) else { throw ZipError.truncated }
+        return result
     }
 
     static func readEntries(in data: Data, at location: Location) throws -> [ZipEntry] {
         var entries: [ZipEntry] = []
         entries.reserveCapacity(location.count)
         var cursor = location.offset
+        var total: UInt64 = 0
         for _ in 0..<location.count {
             guard cursor + 46 <= data.count, data.uint32(at: cursor) == entrySignature else { throw ZipError.truncated }
             let nameLength = Int(data.uint16(at: cursor + 28))
@@ -60,6 +74,9 @@ enum ZipCentralDirectory {
                 offset: UInt64(data.uint32(at: cursor + 42))
             )
             sizes.applyExtra(data, from: nameStart + nameLength, length: extraLength)
+            let (sum, overflow) = total.addingReportingOverflow(sizes.uncompressed)
+            guard !overflow, sum <= ZipLimits.maxTotalSize else { throw ZipError.tooLarge(path) }
+            total = sum
 
             entries.append(ZipEntry(
                 path: path,

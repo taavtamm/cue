@@ -94,7 +94,7 @@ extension EditorSession {
     @discardableResult
     public func insertImage(contentsOf url: URL, centredAt point: CGPoint? = nil) async -> Bool {
         let embedder = ImageEmbedder(canvas: CGSize(width: structure.canvas.width, height: structure.canvas.height))
-        guard let image = try? await Task.detached { try embedder.embed(contentsOf: url) }.value else {
+        guard let image = try? await Task.detached(operation: { try embedder.embed(contentsOf: url) }).value else {
             lastError = "Cue couldn't read “\(url.lastPathComponent)” as an image."
             return false
         }
@@ -104,7 +104,7 @@ extension EditorSession {
     @discardableResult
     public func insertImage(data: Data, centredAt point: CGPoint? = nil) async -> Bool {
         let embedder = ImageEmbedder(canvas: CGSize(width: structure.canvas.width, height: structure.canvas.height))
-        guard let image = try? await Task.detached { try embedder.embed(data) }.value else { return false }
+        guard let image = try? await Task.detached(operation: { try embedder.embed(data) }).value else { return false }
         return await insertEmbedded(image, name: "Pasted image", centredAt: point)
     }
 

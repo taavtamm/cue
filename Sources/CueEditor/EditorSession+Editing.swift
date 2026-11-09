@@ -33,22 +33,33 @@ extension EditorSession {
         return true
     }
 
-    /// Writes the deck. Unchanged decks go back out byte for byte.
+    /// Writes the deck as it is now. Unchanged decks go back out byte for
+    /// byte. An edit still in flight lands afterwards and keeps this save
+    /// mark (see `perform`), so the deck then reads as dirty, as it should.
     public func save() throws {
         try document.save()
         document.markSaved()
     }
 
-    /// Throws away unsaved edits and reloads the file from disk.
+    /// Throws away unsaved edits and reloads the file from disk. Runs in turn
+    /// with edits, so one in flight can't land on top of the reloaded deck.
     public func revert() async throws {
-        let url = document.fileURL
-        document = try await Task.detached { try DeckDocument(contentsOf: url) }.value
-        claudeChanges.reset()
-        lastEditedAt = nil
-        slide = min(slide, max(0, slideCount - 1))
-        selection = nil
-        try await loadCanvas()
-        onDocumentChanged?(.none)
+        let outcome: Result<Void, any Error> = await exclusively {
+            do {
+                let url = self.document.fileURL
+                self.document = try await Task.detached { try DeckDocument(contentsOf: url) }.value
+                self.claudeChanges.reset()
+                self.lastEditedAt = nil
+                self.slide = min(self.slide, max(0, self.slideCount - 1))
+                self.selection = nil
+                try await self.loadCanvas()
+                self.onDocumentChanged?(.none)
+                return .success(())
+            } catch {
+                return .failure(error)
+            }
+        }
+        try outcome.get()
     }
 
     // MARK: Shortcuts for the inspector
@@ -78,23 +89,33 @@ extension EditorSession {
     // MARK: Plumbing
 
     private func serialized(_ change: @escaping @Sendable (inout DeckDocument) throws -> EditResult) async -> Bool {
+        await exclusively { await self.perform(change) }
+    }
+
+    /// Runs `body` after every change queued before it; changes queued while
+    /// it runs wait for it. `body` must not call `apply`, `undo` or `redo`
+    /// (they would wait on it); it calls `perform` directly.
+    func exclusively<T: Sendable>(_ body: @escaping @MainActor () async -> T) async -> T {
         let previous = editChain
-        let task = Task<Bool, Never> { @MainActor in
-            _ = await previous?.value
-            return await self.perform(change)
+        let task = Task<T, Never> { @MainActor in
+            await previous?.value
+            return await body()
         }
-        editChain = task
+        editChain = Task { _ = await task.value }
         return await task.value
     }
 
-    private func perform(_ change: @escaping @Sendable (inout DeckDocument) throws -> EditResult) async -> Bool {
+    /// Applies one change now. Call only from inside `exclusively`.
+    func perform(_ change: @escaping @Sendable (inout DeckDocument) throws -> EditResult) async -> Bool {
         let current = document
         do {
-            let (next, result) = try await Task.detached {
+            var (next, result) = try await Task.detached {
                 var copy = current
                 let result = try change(&copy)
                 return (copy, result)
             }.value
+            // A save may have happened while the change was computed.
+            next.adoptSavedState(of: document)
             document = next
             claudeChanges.note(result.edit) // Keeps Claude's change sets undoable on their own.
             lastEditedAt = Date()

@@ -74,9 +74,17 @@ public struct DeckDocument: Sendable {
         savedSource = source
     }
 
+    /// Takes `other`'s save mark: for an edit computed on an older copy of
+    /// this document while the deck was saved.
+    public mutating func adoptSavedState(of other: DeckDocument) {
+        savedSource = other.savedSource
+    }
+
     func encodedData() throws -> Data {
         guard isModified else { return originalData }
-        guard let body = source.data(using: Self.bomlessEncoding(encoding)) else { throw DeckDocumentError.unencodable }
+        // Decoding only ever picks endian-specific UTF-16 (from a byte-order
+        // mark), which writes no mark of its own; the original is put back here.
+        guard let body = source.data(using: encoding) else { throw DeckDocumentError.unencodable }
         // Some decoders keep the mark as U+FEFF in the text; then it's already in `body`.
         return source.hasPrefix("\u{FEFF}") ? body : Self.byteOrderMark(of: originalData) + body
     }
@@ -87,11 +95,6 @@ public struct DeckDocument: Sendable {
         return marks.first { data.starts(with: $0) }.map { Data($0) } ?? Data()
     }
 
-    /// `.utf16` writes its own byte-order mark; the original mark is restored separately.
-    private static func bomlessEncoding(_ encoding: String.Encoding) -> String.Encoding {
-        encoding == .utf16 ? .utf16LittleEndian : encoding
-    }
-
     private struct Analysis {
         let structure: DeckStructure
         let resources: [RemoteResource]
@@ -100,7 +103,7 @@ public struct DeckDocument: Sendable {
     }
 
     private static func analyse(_ text: String, registry: AdapterRegistry) throws -> Analysis {
-        let root = try HTMLParser().parse(text)
+        let root = try HTMLParserPool.shared.parse(text)
         let structure = registry.structure(for: AdapterInput(root: root, source: text))
         return Analysis(
             structure: structure, resources: RemoteResourceScanner.scan(root: root, source: text),

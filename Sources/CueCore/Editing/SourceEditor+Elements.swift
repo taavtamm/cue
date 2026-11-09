@@ -30,7 +30,7 @@ extension SourceEditor {
             }
         }
         if !added.isEmpty {
-            let offset = insertionPoint(inStartTag: startTag)
+            let offset = insertionPoint(of: element, startTag: startTag)
             let precededBySpace = text.unit(at: offset - 1)?.isWhitespace == true
             patches.append(.insert(precededBySpace ? String(added.dropFirst()) + " " : added, at: offset))
         }
@@ -52,11 +52,15 @@ extension SourceEditor {
     /// Cue's live-page markers. They must never be written to the file.
     static let reservedAttributes: Set<String> = ["data-cue-id", "data-cue-owned"]
 
-    /// Just before `>` or `/>` of a start tag, and before any space ahead of it.
-    func insertionPoint(inStartTag startTag: SourceRange) -> Int {
+    /// Just before `>` or `/>` of `element`'s start tag, and before any space
+    /// ahead of it. A `/` that ends an unquoted value (`<a href=/docs/>`) is
+    /// part of the value, not a self-closing slash.
+    func insertionPoint(of element: MappedElement, startTag: SourceRange) -> Int {
         var offset = startTag.end - 1 // the `>`
-        if text.unit(at: offset - 1) == "/" { offset -= 1 }
-        return offset == text.whitespaceStart(before: offset) ? offset : text.whitespaceStart(before: offset)
+        let slash = offset - 1
+        let inAttribute = element.attributeLocations.values.contains { $0.range.start <= slash && slash < $0.range.end }
+        if text.unit(at: slash) == "/", !inAttribute { offset -= 1 }
+        return text.whitespaceStart(before: offset)
     }
 
     /// Sets one property inside the `style` attribute, keeping the rest as written.

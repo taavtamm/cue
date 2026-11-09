@@ -9,7 +9,8 @@ extension SourceEditor {
     func setOverride(selector: String, property: String, value: String?) throws -> (SourceEdit, LivePlan) {
         let selector = selector.trimmingCharacters(in: .whitespacesAndNewlines)
         let property = property.trimmingCharacters(in: .whitespaces).lowercased()
-        guard !selector.isEmpty, !selector.contains(where: { "{}".contains($0) }) else {
+        // `<` could close the style block (`</style>`); selectors never need it.
+        guard !selector.isEmpty, !selector.contains(where: { "{}<".contains($0) }) else {
             throw EditError.unsupported("selector \(selector)")
         }
         guard StyleDeclarations.isValidProperty(property) else { throw EditError.invalidStyleProperty(property) }

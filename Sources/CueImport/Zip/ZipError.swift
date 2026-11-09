@@ -11,6 +11,7 @@ public enum ZipError: Error, Equatable, LocalizedError {
     case checksumMismatch(String)
     case inflateFailed(String)
     case notText(String)
+    case tooLarge(String)
 
     public var errorDescription: String? {
         switch self {
@@ -24,6 +25,7 @@ public enum ZipError: Error, Equatable, LocalizedError {
         case .checksumMismatch(let path): "“\(path)” failed its checksum."
         case .inflateFailed(let path): "“\(path)” couldn't be decompressed."
         case .notText(let path): "“\(path)” isn't UTF-8 text."
+        case .tooLarge(let path): "“\(path)” is too large to open."
         }
     }
 }

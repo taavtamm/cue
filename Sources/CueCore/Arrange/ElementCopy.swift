@@ -19,13 +19,11 @@ public enum ElementCopy {
         var attributes = tag.attributeMap
         attributes["id"] = nil
         attributes["data-cue-id"] = nil
-        let kept = (attributes.removeValue(forKey: "style") ?? "")
-            .split(separator: ";")
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { declaration in
-                let name = declaration.split(separator: ":").first.map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
-                return !declaration.isEmpty && !placementProperties.contains(name ?? "")
-            }
+        // The raw value keeps its entities (`&quot;`), so split it with the
+        // entity- and quote-aware scanner rather than on every `;`.
+        let kept = StyleDeclarations(attributes.removeValue(forKey: "style") ?? "").sourceTexts
+            .filter { !placementProperties.contains($0.property) }
+            .map(\.text)
         let place = "position: absolute; left: \(ElementPlacement.px(frame.minX)); top: \(ElementPlacement.px(frame.minY)); "
             + "width: \(ElementPlacement.px(frame.width)); height: \(ElementPlacement.px(frame.height)); margin: 0"
         let style = ([place] + kept).joined(separator: "; ") + ";"

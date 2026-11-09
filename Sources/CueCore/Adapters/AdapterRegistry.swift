@@ -1,6 +1,8 @@
 import Foundation
 
-/// Tries adapters in the brief's order of precedence. The fallback adapter
+/// Tries adapters in order and uses the first that recognises the deck. The
+/// standard order goes from most to least explicit: Cue's own markup, Claude
+/// Design decks, reveal.js, semantic slide roles, then the fallback, which
 /// always answers, so every HTML file opens as something.
 public struct AdapterRegistry: Sendable {
     public let adapters: [any DeckAdapter]
