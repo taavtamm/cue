@@ -30,8 +30,7 @@ enum PptxFillXML {
     /// CSS gradient angles point up at 0° and turn clockwise; DrawingML's
     /// point right at 0°, also clockwise, in 60 000ths of a degree.
     static func angle(css degrees: Double) -> Int {
-        let turned = (degrees - 90).truncatingRemainder(dividingBy: 360)
-        return Int(((turned < 0 ? turned + 360 : turned) * 60_000).rounded())
+        OOXMLNumber.angle(degrees: degrees - 90)
     }
 
     /// The slide's `<p:bg>`.
@@ -40,5 +39,5 @@ enum PptxFillXML {
     }
 
     /// 0…1 as DrawingML's 100 000ths.
-    static func percent(_ value: Double) -> Int { Int((value * 100_000).rounded()) }
+    static func percent(_ value: Double) -> Int { OOXMLNumber.percent(value) }
 }

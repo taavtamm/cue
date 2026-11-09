@@ -23,9 +23,9 @@ extension NSWindow {
         backgroundColor = .clear
         // An empty unified toolbar gives the title bar the toolbar's height,
         // which centres the traffic lights in Cue's toolbar row.
-        let toolbar = NSToolbar(identifier: "cue.glass")
-        toolbar.showsBaselineSeparator = false
-        self.toolbar = toolbar
+        // No baseline separator: titlebarSeparatorStyle above replaces the
+        // deprecated NSToolbar.showsBaselineSeparator.
+        self.toolbar = NSToolbar(identifier: "cue.glass")
         toolbarStyle = .unified
 
         let glass = NSGlassEffectView()
@@ -42,13 +42,22 @@ extension NSWindow {
     @MainActor
     private func hidesToolbarInFullScreen() {
         let center = NotificationCenter.default
-        center.addObserver(forName: NSWindow.willEnterFullScreenNotification, object: self, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.toolbar?.isVisible = false }
-        }
-        center.addObserver(forName: NSWindow.didExitFullScreenNotification, object: self, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.toolbar?.isVisible = true }
-        }
+        let enter = NSWindow.willEnterFullScreenNotification, exit = NSWindow.didExitFullScreenNotification
+        let tokens = [
+            center.addObserver(forName: enter, object: self, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.toolbar?.isVisible = false }
+            },
+            center.addObserver(forName: exit, object: self, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.toolbar?.isVisible = true }
+            },
+        ]
+        // Owned by the window: removed when it goes away, or replaced if glass is applied again.
+        objc_setAssociatedObject(
+            self, &Self.fullScreenObserversKey, ObserverTokens(tokens), .OBJC_ASSOCIATION_RETAIN_NONATOMIC
+        )
     }
+
+    nonisolated(unsafe) private static var fullScreenObserversKey: UInt8 = 0
 }
 
 /// Makes empty parts of a glass window's toolbar row behave like a title

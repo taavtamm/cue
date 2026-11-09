@@ -73,24 +73,46 @@ cue.exporter = (() => {
     };
   }
 
-  /** Paragraphs of runs for one block: its own text, split at <br>. */
+  /**
+   * Paragraphs of runs for one block: its own text, split at <br>. Text under
+   * white-space: pre, pre-wrap, pre-line or break-spaces also splits at each
+   * newline, and keeps its spaces (all but pre-line) and blank lines.
+   */
   function paragraphsOf(block, canvas) {
     const paragraphs = [[]];
+    const kept = new Set(); // Runs whose spaces are content, not formatting.
     const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
       if (node.nodeType === Node.ELEMENT_NODE) {
         if (node.localName === 'br' && blockOf(node.parentElement, canvas) === block) paragraphs.push([]);
         continue;
       }
-      if (blockOf(node, canvas) !== block || !node.textContent.trim()) continue;
+      if (blockOf(node, canvas) !== block || !node.textContent) continue;
       if (!shows(node.parentElement, canvas)) continue;
-      const text = node.textContent.replace(/\s+/g, ' ');
-      paragraphs[paragraphs.length - 1].push(run(text, getComputedStyle(node.parentElement)));
+      const style = getComputedStyle(node.parentElement);
+      // white-space-collapse where supported, else the white-space keyword.
+      const space = style.whiteSpaceCollapse || style.whiteSpace;
+      const keepsBreaks = /^(pre|pre-wrap|pre-line|break-spaces|preserve|preserve-breaks)$/.test(space);
+      const keepsSpaces = /^(pre|pre-wrap|break-spaces|preserve|preserve-spaces)$/.test(space);
+      if (!keepsBreaks && !keepsSpaces) {
+        if (!node.textContent.trim()) continue;
+        paragraphs[paragraphs.length - 1].push(run(node.textContent.replace(/\s+/g, ' '), style));
+        continue;
+      }
+      const lines = keepsBreaks ? node.textContent.split('\n') : [node.textContent.replace(/\n/g, ' ')];
+      lines.forEach((line, i) => {
+        if (i > 0) paragraphs.push([]);
+        const piece = run(keepsSpaces ? line : line.replace(/[ \t]+/g, ' '), style);
+        if (keepsSpaces) kept.add(piece);
+        paragraphs[paragraphs.length - 1].push(piece);
+      });
     }
-    return paragraphs.filter((runs) => runs.length > 0).map((runs, i, all) => {
-      if (i === 0) runs[0].text = runs[0].text.replace(/^\s+/, '');
+    // A newline right before the end of a pre block doesn't show; nor do empty paragraphs elsewhere.
+    while (paragraphs.length > 1 && paragraphs[paragraphs.length - 1].every((r) => !r.text)) paragraphs.pop();
+    return paragraphs.filter((runs) => runs.length > 0).map((runs, i) => {
+      if (i === 0 && !kept.has(runs[0])) runs[0].text = runs[0].text.replace(/^\s+/, '');
       const last = runs[runs.length - 1];
-      last.text = last.text.replace(/\s+$/, '');
+      if (!kept.has(last)) last.text = last.text.replace(/\s+$/, '');
       return runs;
     });
   }

@@ -23,5 +23,19 @@ enum BridgeScript {
         WKUserScript(source: source, injectionTime: .atDocumentEnd, forMainFrameOnly: true, in: world)
     }
 
+    /// Listeners that must be registered before any deck script runs
+    /// (Resources/JS/early). They call into the bridge once it has loaded.
+    static let earlySource: String = {
+        guard let url = Bundle.module.url(forResource: "key-guard", withExtension: "js", subdirectory: "JS/early"),
+              let text = try? String(contentsOf: url, encoding: .utf8)
+        else { fatalError("key-guard.js is missing from the CueRender bundle") }
+        return text
+    }()
+
+    /// The early listeners, in the bridge world at document start.
+    @MainActor static func earlyUserScript(in world: WKContentWorld) -> WKUserScript {
+        WKUserScript(source: earlySource, injectionTime: .atDocumentStart, forMainFrameOnly: true, in: world)
+    }
+
     @MainActor static var world: WKContentWorld { .world(name: CueBridge.worldName) }
 }

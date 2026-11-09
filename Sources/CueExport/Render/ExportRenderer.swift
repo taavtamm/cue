@@ -11,6 +11,9 @@ public final class ExportRenderer {
     let renderer = SlideRenderer(surface: .export)
     private let window: OffscreenRenderWindow
     private var ready: CheckedContinuation<Void, Error>?
+    /// Fails `start()` if the deck never gets ready. Cancelled as soon as it
+    /// does, or on close, so it doesn't keep this renderer alive.
+    private var timeout: Task<Void, Never>?
 
     /// How long a slide with live web content gets to draw before it's captured.
     static let liveSettle: Duration = .milliseconds(1_500)
@@ -29,20 +32,28 @@ public final class ExportRenderer {
     /// Loads the deck; returns once its player is ready.
     public func start() async throws {
         renderer.onEvent = { [weak self] event in
-            if case .ready = event { self?.ready?.resume(); self?.ready = nil }
+            if case .ready = event { self?.finishStart(nil) }
         }
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             ready = continuation
-            Task {
-                do { try await renderer.load(DeckSource(document: document)) } catch {
-                    ready?.resume(throwing: error)
-                    ready = nil
-                }
-                try? await Task.sleep(for: .seconds(30))
-                ready?.resume(throwing: ExportError.timedOut)
-                ready = nil
+            timeout = Task { [weak self] in
+                do { try await Task.sleep(for: .seconds(30)) } catch { return } // Cancelled: ready or closed.
+                self?.finishStart(ExportError.timedOut)
+            }
+            Task { [weak self] in
+                guard let self else { return }
+                do { try await renderer.load(DeckSource(document: document)) } catch { finishStart(error) }
             }
         }
+    }
+
+    /// Ends `start()` once: with success on ready, or with `error`.
+    private func finishStart(_ error: Error?) {
+        timeout?.cancel()
+        timeout = nil
+        guard let ready else { return }
+        self.ready = nil
+        if let error { ready.resume(throwing: error) } else { ready.resume() }
     }
 
     /// Shows slide `index` finished and waits until it (and any live content) has drawn.
@@ -62,6 +73,7 @@ public final class ExportRenderer {
     }
 
     public func close() {
+        finishStart(CancellationError())
         window.orderOut(nil)
         window.contentView = nil
         window.close()

@@ -8,9 +8,14 @@ import WebKit
 final class BridgeMessageHandler: NSObject, WKScriptMessageHandler {
     var onEvent: ((BridgeEvent) -> Void)?
     var onSandboxEvent: ((SandboxEvent) -> Void)?
+    /// The surface's current page. Messages from a page it replaced (a reload
+    /// still in flight, a slow `ready`) are dropped.
+    weak var currentWebView: WKWebView?
 
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
-        guard message.world.name == CueBridge.worldName, message.frameInfo.isMainFrame else { return }
+        guard message.world.name == CueBridge.worldName, message.frameInfo.isMainFrame,
+              let sender = message.webView, sender === currentWebView
+        else { return }
         if let resources = Self.remoteResources(in: message.body) {
             onSandboxEvent?(.remoteResources(resources))
         } else if let event = BridgeEvent(wire: message.body) {

@@ -2,7 +2,8 @@ import Foundation
 import Observation
 
 /// Cue's app-wide preferences (Settings window), stored in UserDefaults.
-/// Per-deck choices live in the deck's sidecar instead (`CueSidecar`).
+/// Per-deck choices live in the deck's sidecar (`CueSidecar`), and network and
+/// device grants in `DeckGrantStore`.
 @MainActor @Observable
 public final class CueSettings {
     public static let shared = CueSettings()

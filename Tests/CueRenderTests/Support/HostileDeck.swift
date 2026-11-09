@@ -6,7 +6,11 @@ import Foundation
 ///   <tmp>/secret.txt, <tmp>/secret.png        outside the deck folder
 ///   <tmp>/deck/hostile.html, hostile-attempts.js, inside.txt
 ///   <tmp>/deck/link-to-secret.txt → ../secret.txt
+/// and allows one host, `allowedOrigin`, so the deck can try to pass for it.
 enum HostileDeck {
+    /// Allowed for the hostile deck. Never resolves; the deck only borrows its name.
+    static let allowedOrigin = "http://cue-allowed.test"
+
     struct Setup {
         var source: DeckSource
         var token: String
@@ -31,10 +35,14 @@ enum HostileDeck {
                 .replacingOccurrences(of: "__SERVER__", with: server.origin)
                 .replacingOccurrences(of: "__SECRET__", with: secret.path)
                 .replacingOccurrences(of: "__TOKEN__", with: token)
+                .replacingOccurrences(of: "__ALLOWED__", with: allowedOrigin)
             try Data(text.utf8).write(to: deck.appending(path: name))
         }
         let document = try DeckDocument(contentsOf: deck.appending(path: page))
-        return Setup(source: DeckSource(document: document, allowedHosts: [], permissions: .none), token: token)
+        let noGrants = DeckGrantStore(fileURL: root.appending(path: "no-grants.json"))
+        var source = DeckSource(document: document, grants: noGrants)
+        source.insecureTestOrigins = [allowedOrigin] // Plain HTTP, like the local server.
+        return Setup(source: source, token: token)
     }
 
     static let onePixelPNG = Data(base64Encoded:

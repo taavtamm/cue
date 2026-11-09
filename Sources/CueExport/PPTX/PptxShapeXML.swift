@@ -52,13 +52,13 @@ enum PptxShapeXML {
             return "<a:prstGeom prst=\"\(shape.geometry == "ellipse" ? "ellipse" : "rect")\"><a:avLst/></a:prstGeom>"
         }
         let side = min(shape.box.width, shape.box.height)
-        let adj = side > 0 ? min(50_000, Int((shape.radius / side * 100_000).rounded())) : 0
+        let adj = side > 0 ? OOXMLNumber.int(shape.radius / side * 100_000, in: 0...50_000) : 0
         return "<a:prstGeom prst=\"roundRect\"><a:avLst><a:gd name=\"adj\" fmla=\"val \(adj)\"/></a:avLst></a:prstGeom>"
     }
 
     static func frame(_ box: ExportLayout.Box, rotation: Double, scale: PptxScale) -> String {
-        let turn = Int((rotation * 60_000).rounded())
-        let rot = turn == 0 ? "" : " rot=\"\(turn < 0 ? turn + 21_600_000 : turn)\""
+        let turn = OOXMLNumber.angle(degrees: rotation)
+        let rot = turn == 0 ? "" : " rot=\"\(turn)\""
         return "<a:xfrm\(rot)><a:off x=\"\(scale.emu(box.x))\" y=\"\(scale.emu(box.y))\"/>"
             + "<a:ext cx=\"\(max(1, scale.emu(box.width)))\" cy=\"\(max(1, scale.emu(box.height)))\"/></a:xfrm>"
     }
@@ -74,10 +74,9 @@ enum PptxShapeXML {
     static func shadow(_ shadow: ExportLayout.Shadow?, opacity: Double, scale: PptxScale) -> String {
         guard let shadow, let colour = PptxFillXML.colour(shadow.color, opacity: opacity) else { return "" }
         let distance = (shadow.x * shadow.x + shadow.y * shadow.y).squareRoot()
-        var direction = atan2(shadow.y, shadow.x) * 180 / .pi
-        if direction < 0 { direction += 360 }
+        let direction = atan2(shadow.y, shadow.x) * 180 / .pi
         return "<a:effectLst><a:outerShdw blurRad=\"\(scale.emu(shadow.blur))\" dist=\"\(scale.emu(distance))\""
-            + " dir=\"\(Int((direction * 60_000).rounded()) % 21_600_000)\" algn=\"ctr\" rotWithShape=\"0\">"
+            + " dir=\"\(OOXMLNumber.angle(degrees: direction))\" algn=\"ctr\" rotWithShape=\"0\">"
             + "\(colour)</a:outerShdw></a:effectLst>"
     }
 
@@ -110,8 +109,8 @@ enum PptxShapeXML {
         let from = segment.from, to = segment.to
         let box = ExportLayout.Box(x: min(from.x, to.x), y: min(from.y, to.y),
                                    width: abs(to.x - from.x), height: abs(to.y - from.y))
-        let turn = Int((segment.rotation * 60_000).rounded())
-        let rot = turn == 0 ? "" : " rot=\"\(turn < 0 ? turn + 21_600_000 : turn)\""
+        let turn = OOXMLNumber.angle(degrees: segment.rotation)
+        let rot = turn == 0 ? "" : " rot=\"\(turn)\""
         let xfrm = "<a:xfrm\(rot)><a:off x=\"\(scale.emu(box.x))\" y=\"\(scale.emu(box.y))\"/>"
             + "<a:ext cx=\"\(scale.emu(box.width))\" cy=\"\(scale.emu(box.height))\"/></a:xfrm>"
         return "<p:cxnSp><p:nvCxnSpPr><p:cNvPr id=\"\(id)\" name=\"\(name)\"/><p:cNvCxnSpPr/><p:nvPr/></p:nvCxnSpPr>"

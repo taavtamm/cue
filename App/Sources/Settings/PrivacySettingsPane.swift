@@ -37,14 +37,14 @@ struct PrivacySettingsPane: View {
     private let footnote = "Camera and microphone also need Cue to be allowed in System Settings › Privacy & Security."
 
     @ViewBuilder private func hosts(for entry: Binding<DeckPrivacyEntry>) -> some View {
-        ForEach(entry.wrappedValue.sidecar.allowedHosts, id: \.self) { host in
+        ForEach(entry.wrappedValue.grants.allowedHosts, id: \.self) { host in
             SettingsRow(host, detail: "Allowed") {
                 Button("Revoke") { change(entry) { $0.allowedHosts.removeAll { $0 == host } } }
                     .buttonStyle(.cue(.destructive, height: 28))
             }
             SettingsDivider()
         }
-        ForEach(entry.wrappedValue.sidecar.deniedHosts, id: \.self) { host in
+        ForEach(entry.wrappedValue.grants.deniedHosts, id: \.self) { host in
             SettingsRow(host, detail: "Refused, Cue won't ask again") {
                 Button("Ask Again") { change(entry) { $0.deniedHosts.removeAll { $0 == host } } }
                     .buttonStyle(.cue(height: 28))
@@ -54,7 +54,7 @@ struct PrivacySettingsPane: View {
     }
 
     @ViewBuilder private func devices(for entry: Binding<DeckPrivacyEntry>) -> some View {
-        let permissions = entry.wrappedValue.sidecar.permissions
+        let permissions = entry.wrappedValue.grants.permissions
         toggle("Camera", permissions.camera, entry) { $0.camera = $1 }
         SettingsDivider()
         toggle("Microphone", permissions.microphone, entry) { $0.microphone = $1 }
@@ -74,7 +74,7 @@ struct PrivacySettingsPane: View {
         }
     }
 
-    private func change(_ entry: Binding<DeckPrivacyEntry>, _ edit: (inout CueSidecar) -> Void) {
+    private func change(_ entry: Binding<DeckPrivacyEntry>, _ edit: (inout DeckGrants) -> Void) {
         do {
             try entry.wrappedValue.update(edit)
             failure = nil

@@ -39,7 +39,6 @@ import Testing
     @Test func sidecarWithoutNewKeysStillLoads() throws {
         let json = Data(#"{"version":1,"allowedHosts":["fonts.gstatic.com"]}"#.utf8)
         let sidecar = try JSONDecoder().decode(CueSidecar.self, from: json)
-        #expect(sidecar.allowedHosts == ["fonts.gstatic.com"])
         #expect(sidecar.targetDuration == nil)
         #expect(sidecar.displayRoles.isEmpty)
     }
