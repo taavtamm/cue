@@ -3,7 +3,7 @@ import Foundation
 import Testing
 @testable import CueRender
 
-/// Source mapping and live edits on a real WKWebView showing the Fernwick deck.
+/// Source mapping and live edits on a real WKWebView showing the demo deck.
 @Suite("Live source mapping and edits", .serialized)
 @MainActor
 struct LiveEditingTests {
@@ -27,7 +27,7 @@ struct LiveEditingTests {
     }
 
     private func open() async throws -> (RendererHarness, DeckDocument) {
-        let url = try Fixture.demo-deckCopy()
+        let url = try Fixture.demoDeckCopy()
         let document = try await Task.detached { try DeckDocument(contentsOf: url) }.value
         let harness = RendererHarness(surface: .editor)
         harness.renderer.sourceManifest = document.liveManifest

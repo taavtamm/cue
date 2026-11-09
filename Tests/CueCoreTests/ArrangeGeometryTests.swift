@@ -101,7 +101,7 @@ struct RichTextSanitizerTests {
         #expect(RichTextSanitizer.sanitize("<blink>red</blink> <img src=x onerror=y>") == "red ")
     }
 
-    /// Editing the Fernwick heading must not strip the grey of "hold up.".
+    /// Editing the demo deck's heading must not strip the grey of "hold up.".
     @Test func keepsTheDecksOwnFormatting() {
         let deck = ##"Plans that <font color="#6a6761" style="color: rgb(106, 103, 97); -webkit-text-fill-color: currentcolor;">hold up.</font>"##
         #expect(RichTextSanitizer.sanitize(deck) == deck)

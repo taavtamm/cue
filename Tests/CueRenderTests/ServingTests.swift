@@ -31,7 +31,7 @@ struct ServingTests {
     }
 
     @Test func servedDocumentDropsOnlyThePlayerScript() throws {
-        let source = try Fixture.demo-deckSource()
+        let source = try Fixture.demoDeckSource()
         let range = try #require(source.structure.replacedPlayerScript)
         let served = ServedDocument.html(source: source.sourceText, structure: source.structure)
         let original = source.sourceText as NSString

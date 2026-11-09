@@ -6,7 +6,7 @@ import Testing
 /// The user's own deck in fixtures/private (git-ignored). Skipped when absent.
 @Suite("Real PowerPoint deck")
 struct RealDeckTests {
-    static let pptx = TempFolder.repoRoot.appendingPathComponent("fixtures/private/private-deck.pptx")
+    static let pptx = TempFolder.privateDeck("pptx")
     static var available: Bool { FileManager.default.fileExists(atPath: pptx.path) }
 
     @Test(.enabled(if: RealDeckTests.available)) func convertsEverySlideWithItsNotes() async throws {

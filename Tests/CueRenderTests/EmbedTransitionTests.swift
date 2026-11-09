@@ -24,7 +24,7 @@ struct EmbedTransitionTests {
     @Test func placeholdersStayHiddenThroughSlideChanges() async throws {
         let harness = RendererHarness()
         defer { harness.close() }
-        let source = try Fixture.demo-deckSource()
+        let source = try Fixture.demoDeckSource()
         try await harness.load(source)
         let live = source.structure.slides.indices.filter { source.structure.slides[$0].hasLiveContent }
         let pair = try #require(zip(live, live.dropFirst()).first { $0.1 == $0.0 + 1 })
@@ -47,7 +47,7 @@ struct EmbedTransitionTests {
     @Test func outgoingEmbedsAreRemovedOnceTheTransitionEnds() async throws {
         let harness = RendererHarness()
         defer { harness.close() }
-        let source = try Fixture.demo-deckSource()
+        let source = try Fixture.demoDeckSource()
         try await harness.load(source)
         let live = try #require(source.structure.slides.indices.first { source.structure.slides[$0].hasLiveContent })
 

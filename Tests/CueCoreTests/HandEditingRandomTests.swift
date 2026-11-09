@@ -3,7 +3,7 @@ import Testing
 @testable import CueCore
 
 /// The locality property for milestone B's operations: random moves,
-/// resizes, inserts, deletes and formatted-text edits on the Fernwick deck,
+/// resizes, inserts, deletes and formatted-text edits on the demo deck,
 /// each changing only its own region and undoing to the exact bytes.
 @Suite("Random hand edits")
 struct HandEditingRandomTests {

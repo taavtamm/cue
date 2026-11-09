@@ -16,7 +16,7 @@ struct EmbedFreezeTests {
     @Test func pauseSwapsEmbedsForStillsAndResumeRestoresThem() async throws {
         let harness = RendererHarness(surface: .editor)
         defer { harness.close() }
-        let source = try Fixture.demo-deckSource()
+        let source = try Fixture.demoDeckSource()
         try await harness.load(source)
         let live = try #require(source.structure.slides.indices.first { source.structure.slides[$0].hasLiveContent })
         try await harness.show(ShowPosition(slide: live), finished: true)

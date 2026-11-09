@@ -5,10 +5,10 @@ import Testing
 @Suite("Notes, builds and overrides")
 struct NotesBuildsOverridesTests {
     @Test func notesGoWhereEachFormatKeepsThem() throws {
-        var demo-deck = try Editing.document("demo-deck.html")
-        try demo-deck.apply(.setNotes(slide: 2, text: "Say \"three\" & <pause>"))
-        #expect(demo-deck.structure.slides[2].notes == "Say \"three\" & <pause>")
-        #expect(demo-deck.source.contains("data-speaker-notes=\"Say &quot;three&quot; &amp; &lt;pause>\""))
+        var demo = try Editing.document("demo-deck.html")
+        try demo.apply(.setNotes(slide: 2, text: "Say \"three\" & <pause>"))
+        #expect(demo.structure.slides[2].notes == "Say \"three\" & <pause>")
+        #expect(demo.source.contains("data-speaker-notes=\"Say &quot;three&quot; &amp; &lt;pause>\""))
 
         var reveal = try Editing.document("reveal.html")
         let result = try reveal.apply(.setNotes(slide: 0, text: "Hello all."))

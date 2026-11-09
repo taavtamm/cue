@@ -3,8 +3,8 @@ import Foundation
 import Testing
 @testable import CueRender
 
-/// Real WKWebView tests on the Fernwick fixture.
-@Suite("Universal player on the Fernwick deck", .serialized)
+/// Real WKWebView tests on the demo deck fixture.
+@Suite("Universal player on the demo deck", .serialized)
 @MainActor
 struct PlayerTests {
     /// For each slide: is it showing, and where is its 1920×1080 canvas on screen.
@@ -25,7 +25,7 @@ struct PlayerTests {
     @Test func reportsTwelveSlidesAndUsesTheClaudeDesignPlayer() async throws {
         let harness = RendererHarness()
         defer { harness.close() }
-        try await harness.load(try Fixture.demo-deckSource())
+        try await harness.load(try Fixture.demoDeckSource())
 
         #expect(harness.renderer.slideCount == 12)
         let player: String = try await harness.evaluate("return window.__cue.debug().player")
@@ -39,7 +39,7 @@ struct PlayerTests {
         let size = CGSize(width: 1280, height: 800)
         let harness = RendererHarness(size: size)
         defer { harness.close() }
-        try await harness.load(try Fixture.demo-deckSource())
+        try await harness.load(try Fixture.demoDeckSource())
 
         let scale = min(size.width / 1920, size.height / 1080)
         for slide in 0..<12 {
@@ -61,7 +61,7 @@ struct PlayerTests {
     @Test func liveEmbedsRunOnTheirSlidesOnly() async throws {
         let harness = RendererHarness()
         defer { harness.close() }
-        let source = try Fixture.demo-deckSource()
+        let source = try Fixture.demoDeckSource()
         try await harness.load(source)
 
         let liveSlides = source.structure.slides.indices.filter { source.structure.slides[$0].hasLiveContent }
@@ -85,7 +85,7 @@ struct PlayerTests {
     @Test func embedsAreSandboxedAndAnimate() async throws {
         let harness = RendererHarness()
         defer { harness.close() }
-        let source = try Fixture.demo-deckSource()
+        let source = try Fixture.demoDeckSource()
         try await harness.load(source)
         let liveIndex = source.structure.slides.firstIndex { $0.hasLiveContent }
         let live = try #require(liveIndex)
@@ -105,7 +105,7 @@ struct PlayerTests {
     @Test func hundredRapidShowsEndOnTheLastOne() async throws {
         let harness = RendererHarness()
         defer { harness.close() }
-        try await harness.load(try Fixture.demo-deckSource())
+        try await harness.load(try Fixture.demoDeckSource())
 
         var expected = 0
         for press in 0..<100 {
@@ -125,7 +125,7 @@ struct PlayerTests {
     @Test func thumbnailsNeverStartEmbeds() async throws {
         let harness = RendererHarness(surface: .thumbnail, size: CGSize(width: 320, height: 180))
         defer { harness.close() }
-        let source = try Fixture.demo-deckSource()
+        let source = try Fixture.demoDeckSource()
         try await harness.load(source)
         let liveIndex = source.structure.slides.firstIndex { $0.hasLiveContent }
         let live = try #require(liveIndex)

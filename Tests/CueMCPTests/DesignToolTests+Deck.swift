@@ -10,12 +10,14 @@ import UniformTypeIdentifiers
 /// Embeds, transitions, images from the web, contact sheets and activity.
 @Suite("Design tools on real decks", .serialized)
 struct DesignDeckToolTests {
-    static var demo-deck: String {
-        get throws { try String(contentsOf: Decks.repoRoot.appending(path: "fixtures/demo-deck.html"), encoding: .utf8) }
+    static var demoDeck: String {
+        get throws {
+            try String(contentsOf: Decks.repoRoot.appending(path: "fixtures/demo-deck.html"), encoding: .utf8)
+        }
     }
 
     @Test func embedsReadAndEditOnlyTheirOwnJSON() async throws {
-        let (document, _) = try Decks.document(try Self.demo-deck)
+        let (document, _) = try Decks.document(try Self.demoDeck)
         let host = FakeHost(document)
         let mcp = try await MCPHarness.connect(host)
         let listed = try await mcp.call("get_embeds", ["slide": 2])
@@ -35,7 +37,7 @@ struct DesignDeckToolTests {
     }
 
     @Test func transitionsForBothKindsOfDeck() async throws {
-        let (claudeDeck, _) = try Decks.document(try Self.demo-deck)
+        let (claudeDeck, _) = try Decks.document(try Self.demoDeck)
         let design = try await MCPHarness.connect(FakeHost(claudeDeck))
         #expect(!(try await design.call("set_transition", ["slide": 1, "kind": "push"])).isError)
         #expect(await design.host.document.transition(ofSlide: 0) == "push")
@@ -80,7 +82,7 @@ struct DesignDeckToolTests {
     }
 
     @Test func stylesSummaryOfARealDeckStaysSmall() async throws {
-        let (document, _) = try Decks.document(try Self.demo-deck)
+        let (document, _) = try Decks.document(try Self.demoDeck)
         let mcp = try await MCPHarness.connect(FakeHost(document))
         let summary = try await mcp.call("get_styles")
         #expect(!summary.isError && summary.text.count < 40_000, "\(summary.text.count) characters")

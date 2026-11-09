@@ -20,8 +20,8 @@ struct SyncTests {
         </body></html>
         """
 
-    @Test func demo-deckSurfacesAgreeAfter100RapidPresses() async throws {
-        try await runRapidPresses(source: try Fixture.demo-deckSource(), presses: 100, seed: 7)
+    @Test func demoDeckSurfacesAgreeAfter100RapidPresses() async throws {
+        try await runRapidPresses(source: try Fixture.demoDeckSource(), presses: 100, seed: 7)
     }
 
     @Test func buildDeckSurfacesAgreeAfter100RapidPresses() async throws {

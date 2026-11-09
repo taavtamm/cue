@@ -12,7 +12,7 @@ enum ExportFixtures {
         return folder
     }
 
-    static func demo-deck() throws -> DeckDocument {
+    static func demoDeck() throws -> DeckDocument {
         let copy = try folder().appending(path: "demo-deck.html")
         try FileManager.default.copyItem(at: repoRoot.appending(path: "fixtures/demo-deck.html"), to: copy)
         return try DeckDocument(contentsOf: copy)

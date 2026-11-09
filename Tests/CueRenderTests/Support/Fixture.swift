@@ -8,19 +8,19 @@ enum Fixture {
         .deletingLastPathComponent().deletingLastPathComponent()
         .deletingLastPathComponent().deletingLastPathComponent()
 
-    static var demo-deckURL: URL { repoRoot.appending(path: "fixtures/demo-deck.html") }
+    static var demoDeckURL: URL { repoRoot.appending(path: "fixtures/demo-deck.html") }
 
-    /// A temp folder containing a copy of the Fernwick deck as `deck.html`.
-    static func demo-deckCopy() throws -> URL {
+    /// A temp folder containing a copy of the demo deck as `deck.html`.
+    static func demoDeckCopy() throws -> URL {
         let folder = FileManager.default.temporaryDirectory.appending(path: "cue-render-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let copy = folder.appending(path: "deck.html")
-        try FileManager.default.copyItem(at: demo-deckURL, to: copy)
+        try FileManager.default.copyItem(at: demoDeckURL, to: copy)
         return copy
     }
 
-    static func demo-deckSource() throws -> DeckSource {
-        DeckSource(document: try DeckDocument(contentsOf: try demo-deckCopy()))
+    static func demoDeckSource() throws -> DeckSource {
+        DeckSource(document: try DeckDocument(contentsOf: try demoDeckCopy()))
     }
 
     /// A small deck written to a temp folder, analysed by the real adapters.

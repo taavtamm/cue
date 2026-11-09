@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import CueCore
 
-/// The brief's locality test: 50 random single edits on the Fernwick deck,
+/// The brief's locality test: 50 random single edits on the demo deck,
 /// each touching only its own region, re-parsing to the expected structure,
 /// and undoing back to the exact original bytes.
 @Suite("Random single edits")

@@ -76,7 +76,7 @@ struct HandEditingTests {
         #expect(document.source.contains("<h1 id=\"title\" class=\"headline\">Hi <b>there</b> <a>no</a></h1>"))
     }
 
-    @Test func insertingIntoTheFernwickDeckLandsInsideTheSlideCanvas() throws {
+    @Test func insertingIntoTheDemoDeckLandsInsideTheSlideCanvas() throws {
         var document = try Editing.document("demo-deck.html")
         let html = ElementTemplate.shape(.ellipse).html(id: "cue-dot", frame: CGRect(x: 0, y: 0, width: 100, height: 100))
         try document.apply(.insertElement(slide: 2, html: html))

@@ -7,17 +7,17 @@ import ImageIO
 import Testing
 @testable import CueExport
 
-/// Fernwick's slide 3, rendered offscreen: its four cards come out as
+/// The demo deck's slide 3, rendered offscreen: its four cards come out as
 /// PowerPoint shapes under their text, the flat background as the slide's
 /// own, and the flattened picture no longer shows the cards.
 /// Set CUE_EXPORT_RENDER_DIR to keep "demo-deck-slide3.pptx" for a visual check.
-@Suite("Exporting Fernwick's shapes", .serialized)
+@Suite("Exporting the demo deck's shapes", .serialized)
 @MainActor
 struct LiveShapeExportTests {
     static let cardBorder = "rgb(58, 54, 48)"
 
     @Test func slideThreesCardsAreShapesBehindTheirText() async throws {
-        let document = try ExportFixtures.demo-deck()
+        let document = try ExportFixtures.demoDeck()
         let renderer = ExportRenderer(document: document)
         defer { renderer.close() }
         try await renderer.start()

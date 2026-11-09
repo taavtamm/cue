@@ -89,7 +89,7 @@ struct ImageEmbedderTests {
     }
 }
 
-/// Moving, resizing and inserting on the real Fernwick deck.
+/// Moving, resizing and inserting on the real demo deck.
 @Suite("Hand editing on the canvas", .serialized)
 @MainActor
 struct HandEditingSessionTests {

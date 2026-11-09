@@ -2,7 +2,7 @@ import CryptoKit
 import Foundation
 
 /// Like `ImagePlaceholders`, for whole `<style>` and `<script>` blocks too
-/// big to send Claude (Fernwick's stylesheet is ~545 KB). Their contents are
+/// big to send Claude (the demo deck's stylesheet is ~545 KB). Their contents are
 /// swapped for a comment naming the block; HTML coming back has them restored
 /// from the deck, so a rewritten `<head>` or document keeps them as they were.
 ///

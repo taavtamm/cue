@@ -81,7 +81,7 @@ struct RemoteResourceTests {
         #expect(NetworkRequest.pending(from: [], allowed: [], denied: []) == nil)
     }
 
-    @Test func demo-deckDeckNeedsNoNetwork() throws {
+    @Test func demoDeckNeedsNoNetwork() throws {
         // Its fonts are embedded; Google Fonts appears only in its CSP.
         let document = try DeckDocument(contentsOf: try Fixtures.copy("demo-deck.html"))
         #expect(document.remoteResources.allSatisfy { $0.origin == .policy })

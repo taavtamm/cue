@@ -8,7 +8,7 @@ import Testing
 /// already control it, so a test never triggers a permission prompt.
 @Suite("Keynote route")
 struct KeynoteRouteTests {
-    static let key = TempFolder.repoRoot.appendingPathComponent("fixtures/private/private-deck.key")
+    static let key = TempFolder.privateDeck("key")
 
     static var permitted: Bool {
         guard KeynoteExporter().isInstalled, FileManager.default.fileExists(atPath: key.path) else { return false }

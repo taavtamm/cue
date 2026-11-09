@@ -6,9 +6,9 @@ import PDFKit
 import Testing
 @testable import CueExport
 
-/// Real exports of the Fernwick deck, rendered offscreen.
+/// Real exports of the demo deck, rendered offscreen.
 /// Set CUE_EXPORT_RENDER_DIR to keep the files for a visual check.
-@Suite("Exporting the Fernwick deck", .serialized)
+@Suite("Exporting the demo deck", .serialized)
 @MainActor
 struct LiveExportTests {
     func outputFolder() throws -> URL {
@@ -17,7 +17,7 @@ struct LiveExportTests {
     }
 
     @Test func powerPointIsEditableAndReadsBack() async throws {
-        let document = try ExportFixtures.demo-deck()
+        let document = try ExportFixtures.demoDeck()
         let url = try outputFolder().appending(path: "demo-deck.pptx")
         var steps: [Int] = []
         let result = try await DeckExport.powerPoint(document, to: url) { done, _ in steps.append(done) }
@@ -25,8 +25,8 @@ struct LiveExportTests {
         #expect(steps.last == 12)
         #expect(result.flattened.count == 12)
         #expect(result.flattened[2] > 0, "slide 3's live embed and logo stay in its picture")
-        #expect(try Data(contentsOf: document.fileURL) == Data(contentsOf: ExportFixtures.repoRoot.appending(path: "fixtures/demo-deck.html")),
-                "the deck isn't changed")
+        let fixture = ExportFixtures.repoRoot.appending(path: "fixtures/demo-deck.html")
+        #expect(try Data(contentsOf: document.fileURL) == Data(contentsOf: fixture), "the deck isn't changed")
 
         let archive = try ZipArchive(data: Data(contentsOf: url))
         for entry in archive.entries where entry.path.hasSuffix(".xml") || entry.path.hasSuffix(".rels") {
@@ -44,7 +44,7 @@ struct LiveExportTests {
     }
 
     @Test func pdfHasOnePagePerSlide() async throws {
-        let document = try ExportFixtures.demo-deck()
+        let document = try ExportFixtures.demoDeck()
         let url = try outputFolder().appending(path: "demo-deck.pdf")
         let result = try await DeckExport.pdf(document, to: url)
         let pdf = try #require(PDFDocument(url: url))
@@ -55,7 +55,7 @@ struct LiveExportTests {
     }
 
     @Test func imagesAreOnePNGPerSlide() async throws {
-        let document = try ExportFixtures.demo-deck()
+        let document = try ExportFixtures.demoDeck()
         let folder = try outputFolder().appending(path: "demo-deck images")
         _ = try await DeckExport.images(document, to: folder, scale: 1)
         let files = try FileManager.default.contentsOfDirectory(atPath: folder.path).sorted()

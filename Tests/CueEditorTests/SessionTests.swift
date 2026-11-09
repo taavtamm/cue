@@ -5,8 +5,8 @@ import Foundation
 import Testing
 @testable import CueRender
 
-/// The editor session on a real WKWebView showing the Fernwick deck.
-@Suite("Editor session on the Fernwick deck", .serialized)
+/// The editor session on a real WKWebView showing the demo deck.
+@Suite("Editor session on the demo deck", .serialized)
 @MainActor
 struct SessionTests {
     private func open(slide: Int = 0) async throws -> (SessionHarness, DeckDocument) {

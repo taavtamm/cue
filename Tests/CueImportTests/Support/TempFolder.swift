@@ -22,4 +22,13 @@ final class TempFolder {
 
     static let repoRoot = URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+
+    /// The first file with this extension in fixtures/private (git-ignored, for
+    /// the developer's own real decks), or a path that doesn't exist.
+    static func privateDeck(_ pathExtension: String) -> URL {
+        let folder = repoRoot.appendingPathComponent("fixtures/private")
+        let files = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? []
+        return files.filter { $0.pathExtension == pathExtension }.min { $0.lastPathComponent < $1.lastPathComponent }
+            ?? folder.appendingPathComponent("missing.\(pathExtension)")
+    }
 }
