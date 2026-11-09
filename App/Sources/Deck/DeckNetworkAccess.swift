@@ -4,7 +4,7 @@ import Foundation
 import Observation
 
 /// What this deck may reach on the network, and whether to ask about it.
-/// Choices live in the deck's sidecar (`deck.cue.json`), never in the HTML.
+/// Choices live in Cue's own store (`DeckGrantStore`), never in the HTML or the sidecar.
 /// Only the deck window asks; a running show uses what's already allowed.
 @MainActor @Observable
 final class DeckNetworkAccess {
@@ -12,24 +12,25 @@ final class DeckNetworkAccess {
     private(set) var request: NetworkRequest?
     /// Set when the deck's scripts hung and Cue turned them off.
     private(set) var scriptsStopped = false
-    /// The sidecar couldn't be read, so choices aren't saved (it is never overwritten).
+    /// The store couldn't be read, so choices aren't saved (it is never overwritten).
     private(set) var saveError: String?
     /// Called after the user allows hosts, so surfaces can reload with them.
     var onAllowed: (() -> Void)?
 
-    private let sidecarURL: URL
-    private var sidecar: CueSidecar
+    private let deckURL: URL
+    private let store = DeckGrantStore.standard
+    private var grants: DeckGrants
     private var wanted: [RemoteResource] = []
     /// "Not now" lasts until the deck is closed.
     private var postponed: Set<String> = []
 
     init(document: DeckDocument) {
-        sidecarURL = document.sidecarURL
-        sidecar = (try? CueSidecar.load(from: sidecarURL)) ?? CueSidecar()
+        deckURL = document.fileURL
+        grants = store.grants(forDeck: deckURL)
         note(document.remoteResources)
     }
 
-    var allowedHosts: [String] { sidecar.allowedHosts }
+    var allowedHosts: [String] { grants.allowedHosts }
 
     func handle(_ event: SandboxEvent) {
         switch event {
@@ -66,21 +67,19 @@ final class DeckNetworkAccess {
 
     private func refresh() {
         request = NetworkRequest.pending(
-            from: wanted, allowed: sidecar.allowedHosts, denied: sidecar.deniedHosts + postponed
+            from: wanted, allowed: grants.allowedHosts, denied: grants.deniedHosts + postponed
         )
     }
 
-    /// Merges a choice into the sidecar on disk, keeping everything else in it
-    /// (display roles, timings, other choices made meanwhile). If the file
-    /// can't be read, it is left alone and the choice applies to this session.
-    private func save(_ change: (inout CueSidecar) -> Void) {
-        change(&sidecar)
+    /// Merges a choice into the store, keeping other choices made meanwhile.
+    /// If the store can't be read, it is left alone and the choice applies to this session.
+    private func save(_ change: (inout DeckGrants) -> Void) {
+        change(&grants)
         do {
-            try CueSidecar.update(at: sidecarURL, change)
-            sidecar = try CueSidecar.load(from: sidecarURL)
+            grants = try store.update(forDeck: deckURL, change)
             saveError = nil
         } catch {
-            saveError = "Couldn't save to \(sidecarURL.lastPathComponent): \(error.localizedDescription)"
+            saveError = "Couldn't save to \(store.fileURL.lastPathComponent): \(error.localizedDescription)"
             NSLog("Cue: %@", saveError ?? "")
         }
     }

@@ -66,11 +66,11 @@ public struct PptxScale: Sendable, Equatable {
     public let pointsPerPixel: Double
 
     public init(canvasWidth: Double) {
-        emuPerPixel = Self.slideWidth / max(1, canvasWidth)
+        emuPerPixel = Self.slideWidth / (canvasWidth.isFinite ? max(1, canvasWidth) : 1)
         pointsPerPixel = emuPerPixel / 12_700 // 12 700 EMU per point.
     }
 
-    public func emu(_ pixels: Double) -> Int { Int((pixels * emuPerPixel).rounded()) }
+    public func emu(_ pixels: Double) -> Int { OOXMLNumber.int(pixels * emuPerPixel) }
     /// Hundredths of a point, as DrawingML sizes are written.
-    public func centipoints(_ pixels: Double) -> Int { Int((pixels * pointsPerPixel * 100).rounded()) }
+    public func centipoints(_ pixels: Double) -> Int { OOXMLNumber.int(pixels * pointsPerPixel * 100) }
 }

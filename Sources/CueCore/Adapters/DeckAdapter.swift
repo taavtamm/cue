@@ -27,10 +27,10 @@ public struct AdapterInput {
     }
 
     /// The text between an element's start and end tags (for `<script>` bodies).
+    /// Without an end tag (cut off at the end of the file), up to the element's end.
     public func innerText(of node: HTMLNode) -> String {
         guard let whole = node.range, let startTag = node.startTagRange else { return "" }
-        let closeTag = "</\(node.tag)>".utf16.count
-        let end = max(startTag.end, whole.end - closeTag)
+        let end = max(startTag.end, node.endTagRange?.start ?? whole.end)
         return text(in: SourceRange(start: startTag.end, end: end))
     }
 }

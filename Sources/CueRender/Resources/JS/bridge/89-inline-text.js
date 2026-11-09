@@ -73,9 +73,10 @@ cue.inlineText = (() => {
 
   const onBlur = () => finish(true);
 
-  // Capture on window, registered before any deck script: while editing, the
+  // Called from early/key-guard.js, whose capture listener on window is
+  // registered at document start, before any deck script: while editing, the
   // deck's own key handlers (e.g. space for "next slide") never see the keys.
-  window.addEventListener('keydown', (event) => {
+  function handleKey(event) {
     if (!editing) return;
     event.stopImmediatePropagation();
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -85,7 +86,7 @@ cue.inlineText = (() => {
       event.preventDefault();
       finish(false);
     }
-  }, true);
+  }
   document.addEventListener('selectionchange', () => { if (editing) report('caret'); });
   document.addEventListener('input', () => { if (editing) report('input'); }, true);
 
@@ -97,5 +98,5 @@ cue.inlineText = (() => {
     return done;
   }
 
-  return { begin, finish, format, isTextBox, isEditing: () => editing !== null };
+  return { begin, finish, format, handleKey, isTextBox, isEditing: () => editing !== null };
 })();

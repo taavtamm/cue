@@ -4,16 +4,15 @@ import Foundation
 /// inside the HTML (unless the user turns on "embed Cue settings").
 ///
 /// Every field is optional on disk, so older or hand-edited files still load.
+///
+/// Nothing here grants anything. Anyone can ship a sidecar with a deck, so
+/// allowed hosts and device permissions live in `DeckGrantStore` instead, and
+/// the `allowedHosts`, `deniedHosts` and `permissions` keys older versions
+/// wrote here are ignored.
 public struct CueSidecar: Sendable, Equatable, Codable {
     public static let currentVersion = 1
 
     public var version = CueSidecar.currentVersion
-    /// Hosts this deck may load from, e.g. "fonts.gstatic.com". Empty = offline.
-    public var allowedHosts: [String] = []
-    /// Hosts the user said no to, so Cue doesn't ask again.
-    public var deniedHosts: [String] = []
-    /// Camera, microphone and location for this deck. All off by default.
-    public var permissions = DeckPermissions.none
     /// Display roles keyed by a fingerprint of the connected display set.
     public var displayRoles: [String: [String: String]] = [:]
     /// Rehearsal time per slide id, in seconds.
@@ -26,9 +25,6 @@ public struct CueSidecar: Sendable, Equatable, Codable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         version = try container.decodeIfPresent(Int.self, forKey: .version) ?? Self.currentVersion
-        allowedHosts = try container.decodeIfPresent([String].self, forKey: .allowedHosts) ?? []
-        deniedHosts = try container.decodeIfPresent([String].self, forKey: .deniedHosts) ?? []
-        permissions = try container.decodeIfPresent(DeckPermissions.self, forKey: .permissions) ?? .none
         displayRoles = try container.decodeIfPresent([String: [String: String]].self, forKey: .displayRoles) ?? [:]
         rehearsalTimings = try container.decodeIfPresent([String: Double].self, forKey: .rehearsalTimings) ?? [:]
         targetDuration = try container.decodeIfPresent(Double.self, forKey: .targetDuration)

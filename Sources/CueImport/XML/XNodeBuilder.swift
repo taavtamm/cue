@@ -7,8 +7,10 @@ enum XNodeBuilder {
     static func wrap(_ node: XNode, as childName: String) -> XNode {
         let renamed = XNode(name: childName, attributes: node.attributes)
         renamed.children = node.children
+        renamed.contents = node.contents
+        renamed.text = node.text
         let parent = XNode(name: "wrapper", attributes: [:])
-        parent.children = [renamed]
+        parent.appendChild(renamed)
         return parent
     }
 }

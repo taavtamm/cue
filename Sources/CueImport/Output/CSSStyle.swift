@@ -26,8 +26,12 @@ public struct CSSStyle: Sendable, Equatable {
 }
 
 /// Number formatting for CSS: at most two decimals, no trailing zeros.
+/// Damaged files can hold NaN, infinities or absurd sizes; those become 0
+/// or are clamped to ±1,000,000 so the integer conversion can't trap.
 public func css(_ value: Double, _ unit: String = "px") -> String {
-    let rounded = (value * 100).rounded() / 100
+    let limit = 1_000_000.0
+    let safe = value.isFinite ? min(max(value, -limit), limit) : 0
+    let rounded = (safe * 100).rounded() / 100
     let text = rounded == rounded.rounded() ? String(Int(rounded)) : String(rounded)
     return text + (rounded == 0 ? "" : unit)
 }

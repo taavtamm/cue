@@ -9,10 +9,15 @@ public struct DeckSource: Sendable {
     /// so unsaved edits show immediately.
     public var sourceText: String
     public var structure: DeckStructure
-    /// Hosts the user allowed this deck to load from, e.g. "fonts.gstatic.com".
+    /// Hosts the user allowed this deck to load from over HTTPS, e.g.
+    /// "fonts.gstatic.com". Anything that isn't a bare host name is ignored.
     public var allowedHosts: [String]
     /// Camera, microphone and location for this deck. Off unless the user allowed them.
     public var permissions: DeckPermissions
+    /// Plain-HTTP origins ("http://localhost") for tests against a local
+    /// server. Internal, so only `@testable` code can set it; decks and
+    /// stored grants never reach it.
+    var insecureTestOrigins: [String] = []
 
     public init(
         fileURL: URL,
@@ -42,15 +47,16 @@ public struct DeckSource: Sendable {
 
 extension DeckSource {
     /// Serves the document's current text, including unsaved edits. Network
-    /// and permission choices come from the deck's sidecar unless given.
-    public init(document: DeckDocument, allowedHosts: [String]? = nil, permissions: DeckPermissions? = nil) {
-        let sidecar = (try? CueSidecar.load(from: document.sidecarURL)) ?? CueSidecar()
+    /// and permission choices come from `grants`, never from the deck's
+    /// sidecar: a deck could ship one that allows itself anything.
+    public init(document: DeckDocument, grants store: DeckGrantStore = .standard) {
+        let grants = store.grants(forDeck: document.fileURL)
         self.init(
             fileURL: document.fileURL,
             sourceText: document.source,
             structure: document.structure,
-            allowedHosts: allowedHosts ?? sidecar.allowedHosts,
-            permissions: permissions ?? sidecar.permissions
+            allowedHosts: grants.allowedHosts,
+            permissions: grants.permissions
         )
     }
 }

@@ -48,7 +48,7 @@ struct DeckDocumentTests {
         let url = try Fixtures.copy("plain-page.html").deletingPathExtension().appendingPathExtension("cue.json")
         #expect(try CueSidecar.load(from: url) == CueSidecar())
         var sidecar = CueSidecar()
-        sidecar.allowedHosts = ["fonts.gstatic.com"]
+        sidecar.targetDuration = 600
         try sidecar.save(to: url)
         #expect(try CueSidecar.load(from: url) == sidecar)
     }

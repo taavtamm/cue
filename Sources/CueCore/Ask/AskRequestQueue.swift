@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 /// The Ask bar's requests, oldest first. The editor adds to it; the MCP
-/// server (milestone 7) takes from it and marks requests done.
+/// server takes from it (`next_request`) and marks requests done.
 @MainActor @Observable
 public final class AskRequestQueue {
     public private(set) var requests: [AskRequest] = []

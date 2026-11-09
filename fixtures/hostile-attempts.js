@@ -6,6 +6,7 @@
   const SERVER = '__SERVER__';
   const SECRET = '__SECRET__';
   const TOKEN = '__TOKEN__';
+  const ALLOWED = '__ALLOWED__';
   const list = H.byId('hostile-results');
   let pending = 0;
 
@@ -57,6 +58,21 @@
     const source = new EventSource(SERVER + '/events');
     source.onopen = leak;
     source.onerror = () => { source.close(); block('error'); };
+  });
+  // The allowed host as userinfo in front of the server's: the request goes to the server.
+  const disguised = (path) => ALLOWED + ':x@' + SERVER.split('//')[1] + path;
+  attempt('img via allowed-host userinfo', (leak, block) => {
+    const image = new Image();
+    image.onload = leak;
+    image.onerror = () => block('error');
+    image.src = disguised('/userinfo.png');
+  });
+  attempt('XHR via allowed-host userinfo', (leak, block) => {
+    const xhr = new XMLHttpRequest();
+    xhr.onload = leak;
+    xhr.onerror = () => block('error');
+    xhr.open('GET', disguised('/userinfo-xhr'));
+    xhr.send();
   });
   attempt('sendBeacon', (leak, block, finish) =>
     finish('observed-by-test', 'returned ' + navigator.sendBeacon(SERVER + '/beacon', 'x')));

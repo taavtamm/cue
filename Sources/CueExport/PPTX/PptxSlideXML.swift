@@ -85,10 +85,10 @@ enum PptxSlideXML {
                         crop: PictureCrop?, opacity: Double,
                         scale: PptxScale) -> String {
         let cut = crop.map { crop in
-            let v = { (f: Double) in Int((f * 100_000).rounded()) }
+            let v = OOXMLNumber.percent
             return "<a:srcRect l=\"\(v(crop.left))\" t=\"\(v(crop.top))\" r=\"\(v(crop.right))\" b=\"\(v(crop.bottom))\"/>"
         } ?? ""
-        let fade = opacity < 0.999 ? "<a:alphaModFix amt=\"\(Int((opacity * 100_000).rounded()))\"/>" : ""
+        let fade = opacity < 0.999 ? "<a:alphaModFix amt=\"\(OOXMLNumber.percent(max(0, opacity)))\"/>" : ""
         return "<p:pic><p:nvPicPr><p:cNvPr id=\"\(id)\" name=\"\(XMLText.escape(name))\"/>"
             + "<p:cNvPicPr><a:picLocks noChangeAspect=\"1\"/></p:cNvPicPr><p:nvPr/></p:nvPicPr>"
             + "<p:blipFill><a:blip r:embed=\"\(rid)\">\(fade)</a:blip>\(cut)<a:stretch><a:fillRect/></a:stretch></p:blipFill>"
@@ -96,9 +96,10 @@ enum PptxSlideXML {
             + "<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></p:spPr></p:pic>"
     }
 
-    /// A placeholder shape: on the notes master with a frame, on a notes page with text.
     /// A frame in EMU, for the notes master's placeholders.
     struct Frame { let x, y, width, height: Int }
+
+    /// A placeholder shape: on the notes master with a frame, on a notes page with text.
 
     static func placeholder(id: Int, name: String, type: String, frame: Frame?, text: String?) -> String {
         let index = type == "body" ? " idx=\"1\"" : ""

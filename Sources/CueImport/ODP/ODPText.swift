@@ -39,22 +39,44 @@ enum ODPText {
     }
 
     private static func runs(_ paragraph: XNode, styles: ODPTextStyles) -> String {
-        var out = HTMLText.text(paragraph.text.trimmingCharacters(in: .newlines))
-        for child in paragraph.children {
-            switch child.name {
-            case "span":
-                let style = styles[child["style-name"]]?.text ?? ""
-                out += "<span style=\"\(HTMLText.attribute(style))\">\(HTMLText.text(text(child)))</span>"
-            case "line-break": out += "<br>"
-            case "s": out += String(repeating: " ", count: child.int("c") ?? 1)
-            case "tab": out += "\t"
-            default: out += HTMLText.text(text(child))
+        paragraph.contents.map { piece in
+            switch piece {
+            case .text(let string): HTMLText.text(string.trimmingCharacters(in: .newlines))
+            case .element(let child): run(child, styles: styles)
             }
-        }
-        return out
+        }.joined()
     }
 
+    private static func run(_ child: XNode, styles: ODPTextStyles) -> String {
+        switch child.name {
+        case "span":
+            let style = styles[child["style-name"]]?.text ?? ""
+            return "<span style=\"\(HTMLText.attribute(style))\">\(HTMLText.text(text(child)))</span>"
+        case "line-break": return "<br>"
+        case "s": return spaces(child)
+        case "tab": return "\t"
+        default: return HTMLText.text(text(child))
+        }
+    }
+
+    /// `text:s` stands for `text:c` spaces (a count from the file, kept sane).
+    private static func spaces(_ node: XNode) -> String {
+        String(repeating: " ", count: min(max(node.int("c") ?? 1, 0), 1000))
+    }
+
+    /// The node's text with its children's text where they sit.
     private static func text(_ node: XNode) -> String {
-        node.text + node.children.map { $0.name == "line-break" ? "\n" : text($0) }.joined()
+        node.contents.map { piece in
+            switch piece {
+            case .text(let string): string
+            case .element(let child):
+                switch child.name {
+                case "line-break": "\n"
+                case "s": spaces(child)
+                case "tab": "\t"
+                default: text(child)
+                }
+            }
+        }.joined()
     }
 }

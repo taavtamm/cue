@@ -35,6 +35,11 @@ public final class SlideRenderer: NSView {
     private(set) var position = ShowPosition.start
     private var finished = false
     private var paused = false
+    /// Bumped by every load, so a load that finished compiling rules after a
+    /// newer one started doesn't install its stale page.
+    private var loadGeneration = 0
+    /// Content process crashes on this surface. See `contentProcessTerminated`.
+    private var terminations = 0
     /// True while paused; embeds show frozen stills (`SlideRenderer+Freeze`).
     var isPausedForEditing: Bool { paused }
 
@@ -46,7 +51,7 @@ public final class SlideRenderer: NSView {
         cover.wantsLayer = true
         cover.isHidden = true
         messages.onEvent = { [weak self] event in self?.handle(event) }
-        policy.onContentProcessTerminated = { [weak self] in self?.reload() }
+        policy.onContentProcessTerminated = { [weak self] webView in self?.contentProcessTerminated(webView) }
         messages.onSandboxEvent = { [weak self] event in self?.onSandboxEvent?(event) }
         policy.onRefusal = { [weak self] refusal in self?.onSandboxEvent?(.refused(refusal)) }
     }
@@ -61,7 +66,12 @@ public final class SlideRenderer: NSView {
         self.source = source
         self.position = position
         isReady = false
-        let rules = try await NetworkRules.compile(allowedHosts: source.allowedHosts)
+        loadGeneration += 1
+        let generation = loadGeneration
+        let rules = try await NetworkRules.compile(
+            allowedHosts: source.allowedHosts, insecureTestOrigins: source.insecureTestOrigins
+        )
+        guard generation == loadGeneration else { return } // A newer load took over meanwhile.
         policy.rules = SandboxRules(
             pageURL: source.pageURL, allowedHosts: source.allowedHosts, permissions: source.permissions
         )
@@ -87,9 +97,29 @@ public final class SlideRenderer: NSView {
         }
     }
 
+    /// A crash reloads the page. A deck that crashes it again gets its
+    /// scripts turned off, as for a hang; one that crashes even then is left
+    /// alone instead of reloading forever.
+    func contentProcessTerminated(_ crashed: WKWebView) {
+        guard crashed === webView else { return } // An old page going away.
+        terminations += 1
+        if terminations >= 2 && deckScriptsEnabled {
+            deckScriptsEnabled = false
+            onSandboxEvent?(.scriptsStopped)
+        } else if terminations > Self.maxTerminations {
+            return
+        }
+        isReady = false
+        reload()
+    }
+
+    /// Crashes after which the surface stops reloading.
+    static let maxTerminations = 4
+
     private func install(_ newWebView: WKWebView) {
         webView?.removeFromSuperview()
         webView = newWebView
+        messages.currentWebView = newWebView
         newWebView.frame = bounds
         newWebView.autoresizingMask = [.width, .height]
         newWebView.alphaValue = 0 // Revealed on `ready`, so the stacked, unstyled page never flashes.

@@ -27,7 +27,7 @@ struct NetworkAllowanceTests {
         let server = try LocalServer()
         defer { server.stop() }
         var source = try Fixture.deck(html: Self.probeDeck(port: server.port))
-        source.allowedHosts = ["http://localhost"]
+        source.insecureTestOrigins = ["http://localhost"] // The local server is plain HTTP.
         let harness = RendererHarness()
         defer { harness.close() }
         try await harness.load(source)
@@ -44,15 +44,10 @@ struct NetworkAllowanceTests {
     }
 
     @Test func fontsHostRuleMatchesThatHostOnly() throws {
-        let json = NetworkRules.json(allowedHosts: ["fonts.gstatic.com"])
-        let rules = try #require(try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [[String: Any]])
-        let filters = rules.compactMap { ($0["trigger"] as? [String: String])?["url-filter"] }
-        let filter = try #require(filters.last)
-        let regex = try NSRegularExpression(pattern: filter)
-        func allows(_ url: String) -> Bool {
-            regex.firstMatch(in: url, range: NSRange(url.startIndex..., in: url)) != nil
-        }
+        let rules = try RuleListEvaluator(json: NetworkRules.json(allowedHosts: ["fonts.gstatic.com"]))
+        let allows = rules.allows
         #expect(allows("https://fonts.gstatic.com/s/inter/v1/a.woff2"))
+        #expect(allows("https://fonts.gstatic.com:443/a.woff2"))
         #expect(!allows("https://fonts.gstatic.com.evil.example/a.woff2"))
         #expect(!allows("http://fonts.gstatic.com/a.woff2"))
         #expect(!allows("https://evil.example/?https://fonts.gstatic.com/"))

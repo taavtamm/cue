@@ -9,6 +9,24 @@ public final class XNode: @unchecked Sendable {
     public internal(set) var children: [XNode] = []
     /// Character data directly inside this element.
     public internal(set) var text = ""
+    /// Character data and child elements interleaved, in document order.
+    public internal(set) var contents: [XContent] = []
+
+    /// Adds character data to `text` and to `contents`, merging adjacent runs
+    /// (XMLParser may report one run in several pieces).
+    func appendText(_ string: String) {
+        text += string
+        if case .text(let previous) = contents.last {
+            contents[contents.count - 1] = .text(previous + string)
+        } else {
+            contents.append(.text(string))
+        }
+    }
+
+    func appendChild(_ node: XNode) {
+        children.append(node)
+        contents.append(.element(node))
+    }
 
     init(name: String, attributes: [String: String]) {
         self.name = name

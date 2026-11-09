@@ -1,8 +1,8 @@
 import Foundation
 
 /// Something the user typed into Cue's Ask bar, waiting for Claude.
-/// Milestone 7 serves these to a connected Claude Code session over MCP
-/// (`next_request`); until then they only queue.
+/// A connected Claude Code session takes these over MCP (`next_request`);
+/// with none connected they wait in the queue.
 public struct AskRequest: Sendable, Equatable, Codable, Identifiable {
     public enum Status: String, Sendable, Codable {
         /// Waiting for a connected Claude session to pick it up.

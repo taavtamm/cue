@@ -2,7 +2,8 @@ import Foundation
 import Observation
 
 /// Cue's app-wide preferences (Settings window), stored in UserDefaults.
-/// Per-deck choices live in the deck's sidecar instead (`CueSidecar`).
+/// Per-deck choices live in the deck's sidecar (`CueSidecar`), and network and
+/// device grants in `DeckGrantStore`.
 @MainActor @Observable
 public final class CueSettings {
     public static let shared = CueSettings()
@@ -27,8 +28,9 @@ public final class CueSettings {
     /// Font for new text boxes and new decks.
     public var defaultFontFamily: String { didSet { store(defaultFontFamily, .fontFamily) } }
     public var defaultFontSize: Double { didSet { clampAndStore(\.defaultFontSize, 8...400, .fontSize) } }
-    /// Keep Claude's edits without asking (Settings › Claude). Off by default:
-    /// every edit waits for Accept or Undo.
+    /// Keep Claude's edits without asking (Settings › Claude). On by default:
+    /// Claude's edits are kept immediately, each still undoable on its own.
+    /// Turned off, every edit waits for Accept or Undo.
     public var autoAcceptClaudeEdits: Bool { didSet { store(autoAcceptClaudeEdits, .autoAcceptClaude) } }
 
     @ObservationIgnored private let defaults: UserDefaults

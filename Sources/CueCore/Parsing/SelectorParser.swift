@@ -46,7 +46,8 @@ enum SelectorParser {
                 guard let close = scanner.firstIndex(of: "]") else { return nil }
                 let body = scanner[..<close]
                 scanner = scanner[scanner.index(after: close)...]
-                compound.attributes.append(attribute(body))
+                guard let attribute = attribute(body) else { return nil }
+                compound.attributes.append(attribute)
             default:
                 return nil
             }
@@ -54,9 +55,11 @@ enum SelectorParser {
         return compound
     }
 
-    private static func attribute(_ body: Substring) -> (name: String, value: String?) {
-        let parts = body.split(separator: "=", maxSplits: 1)
+    /// `name` or `name=value`; nil when the name is missing (`[]`, `[=x]`).
+    private static func attribute(_ body: Substring) -> (name: String, value: String?)? {
+        let parts = body.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
         let name = parts[0].trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return nil }
         guard parts.count == 2 else { return (name, nil) }
         let value = parts[1].trimmingCharacters(in: CharacterSet(charactersIn: "\"' "))
         return (name, value)

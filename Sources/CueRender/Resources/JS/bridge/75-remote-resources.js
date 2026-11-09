@@ -13,7 +13,8 @@
   function hostOf(value) {
     try {
       const url = new URL(String(value).trim(), document.baseURI);
-      return /^(https?|wss?):$/.test(url.protocol) ? url.hostname.toLowerCase() : null;
+      // Not ws: or wss:, which stay blocked even for allowed hosts, so there's nothing to ask.
+      return /^https?:$/.test(url.protocol) ? url.hostname.toLowerCase() : null;
     } catch (error) {
       return null;
     }

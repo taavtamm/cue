@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import CueCore
 
-/// `deck.cue.json` is shared by display roles, network choices and timings.
+/// `deck.cue.json` is shared by display roles, timings and the talk length.
 /// Updates must merge, never wipe.
 @Suite("Sidecar updates")
 struct SidecarUpdateTests {
@@ -14,10 +14,10 @@ struct SidecarUpdateTests {
         let url = tempURL()
         defer { try? FileManager.default.removeItem(at: url) }
         try CueSidecar.update(at: url) { $0.displayRoles = ["set": ["1": "stage"]] }
-        try CueSidecar.update(at: url) { $0.allowedHosts = ["fonts.gstatic.com"] }
+        try CueSidecar.update(at: url) { $0.targetDuration = 600 }
         let sidecar = try CueSidecar.load(from: url)
         #expect(sidecar.displayRoles == ["set": ["1": "stage"]])
-        #expect(sidecar.allowedHosts == ["fonts.gstatic.com"])
+        #expect(sidecar.targetDuration == 600)
     }
 
     @Test func unknownKeysSurviveAnUpdate() throws {
@@ -33,10 +33,10 @@ struct SidecarUpdateTests {
     @Test func anUnreadableSidecarIsNeverReplaced() throws {
         let url = tempURL()
         defer { try? FileManager.default.removeItem(at: url) }
-        let damaged = Data(#"{"allowedHosts": "not a list", "displayRoles": {"set": {"1": "stage"}}}"#.utf8)
+        let damaged = Data(#"{"targetDuration": "not a number", "displayRoles": {"set": {"1": "stage"}}}"#.utf8)
         try damaged.write(to: url)
         #expect(throws: (any Error).self) {
-            try CueSidecar.update(at: url) { $0.allowedHosts = ["example.com"] }
+            try CueSidecar.update(at: url) { $0.targetDuration = 60 }
         }
         #expect(try Data(contentsOf: url) == damaged)
     }

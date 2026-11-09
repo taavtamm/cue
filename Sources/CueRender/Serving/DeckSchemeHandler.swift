@@ -19,12 +19,18 @@ final class DeckSchemeHandler: NSObject, WKURLSchemeHandler {
         guard let url = task.request.url else { return fail(task, status: 400) }
         guard url.host == Self.host else { return fail(task, status: 403) }
 
-        switch source.folder.resolve(urlPath: url.path(percentEncoded: true)) {
+        // The deck itself always comes from memory (unsaved edits, Cue's player).
+        // Requests resolve symlinks, so compare with the deck file's resolved
+        // path too: a deck that is itself a link, or a link to it, mustn't be read from disk.
+        let deckFile = source.fileURL.standardizedFileURL.resolvingSymlinksInPath().path
+        let resolved = source.folder.resolve(urlPath: url.path(percentEncoded: true))
+        if url.path == source.pageURL.path || (try? resolved.get())?.path == deckFile {
+            let html = ServedDocument.html(source: source.sourceText, structure: source.structure)
+            return respond(task, url: url, data: Data(html.utf8), mime: "text/html")
+        }
+        switch resolved {
         case .failure:
             fail(task, status: 403)
-        case .success(let file) where file == source.folder.root.appending(path: source.fileURL.lastPathComponent):
-            let html = ServedDocument.html(source: source.sourceText, structure: source.structure)
-            respond(task, url: url, data: Data(html.utf8), mime: "text/html")
         case .success(let file):
             guard let data = try? Data(contentsOf: file) else { return fail(task, status: 404) }
             respond(task, url: url, data: data, mime: MIMEType.forFile(file))
