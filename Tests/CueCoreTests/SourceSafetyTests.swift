@@ -66,3 +66,11 @@ struct SourceSafetyTests {
         #expect(!copy.contains("left: 3px"))
     }
 }
+
+@Test func escapedURLsDontGetPastTheStyleFilter() {
+    #expect(RichTextSanitizer.safeStyle("background: u&#114;l(https://x.example/a.png)") == nil)
+    #expect(RichTextSanitizer.safeStyle("background: url&lpar;https://x.example/a.png)") == nil)
+    #expect(RichTextSanitizer.safeStyle(#"background: \75rl(https://x.example/a.png)"#) == nil)
+    #expect(RichTextSanitizer.safeStyle("font-family: &quot;Inter&quot;, sans-serif; color: red")
+        == "font-family: &quot;Inter&quot;, sans-serif; color: red;")
+}

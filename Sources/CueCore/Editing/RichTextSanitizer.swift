@@ -73,6 +73,11 @@ public enum RichTextSanitizer {
         // quote-aware scanner rather than on every `;`.
         let kept = StyleDeclarations(style).sourceTexts.map(\.text).filter { declaration in
             let lower = declaration.lowercased()
+            // Character references (`u&#114;l(`, `url&lpar;`) and CSS escapes
+            // (`\75rl(`) could spell what the list catches; only the plain
+            // quote and ampersand entities WebKit writes may stay.
+            let plain = ["&quot;", "&amp;", "&#39;", "&apos;"].reduce(lower) { $0.replacingOccurrences(of: $1, with: "") }
+            guard !plain.contains("&"), !plain.contains("\\") else { return false }
             return !unsafe.contains(where: lower.contains)
         }
         return kept.isEmpty ? nil : kept.joined(separator: "; ") + ";"
