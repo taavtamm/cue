@@ -26,15 +26,8 @@ struct SocketTests {
         try #require(FileManager.default.isExecutableFile(atPath: helper.path), "build cue-mcp first")
         let (document, _) = try Decks.document()
         let path = socketPath()
-        let listener = MCPSocketListener(server: CueMCPServer(host: FakeHost(document)), path: path)
-        let ready = AsyncStream<MCPSocketListener.State> { continuation in
-            try? listener.start { continuation.yield($0) }
-        }
+        let listener = try await startListener(document, at: path)
         defer { listener.stop() }
-        for await state in ready {
-            if case .listening = state { break }
-            if case .failed(let message) = state { Issue.record("listener failed: \(message)"); return }
-        }
         let mode = try FileManager.default.attributesOfItem(atPath: path)[.posixPermissions] as? Int
         #expect(mode == 0o600, "only this user may connect")
 
@@ -122,31 +115,39 @@ struct SocketTests {
         + #""capabilities":{},"clientInfo":{"name":"test","version":"1"}}}"#
     static let initialized = #"{"jsonrpc":"2.0","method":"notifications/initialized"}"#
 
+    /// A listening listener, or an error after 10 s: a listener that never
+    /// gets there must fail the test, not hang the whole run.
     private func startListener(_ document: DeckDocument, at path: String) async throws -> MCPSocketListener {
         let listener = MCPSocketListener(server: CueMCPServer(host: FakeHost(document)), path: path)
-        let ready = AsyncStream<MCPSocketListener.State> { continuation in
-            try? listener.start { continuation.yield($0) }
+        switch try await firstState(of: listener) {
+        case .listening: return listener
+        case .failed(let message): listener.stop(); throw CueMCPError.invalid(message)
+        case .stopped: throw CueMCPError.invalid("The listener stopped.")
         }
-        for await state in ready {
-            if case .listening = state { return listener }
-            if case .failed(let message) = state { throw CueMCPError.invalid(message) }
+    }
+
+    /// The listener's first state other than stopped, waiting up to 10 s.
+    private func firstState(of listener: MCPSocketListener) async throws -> MCPSocketListener.State {
+        let states = StateBox()
+        try listener.start { states.set($0) }
+        let deadline = Date().addingTimeInterval(10)
+        while Date() < deadline {
+            if let state = states.value, state != .stopped { return state }
+            try await Task.sleep(for: .milliseconds(20))
         }
-        return listener
+        listener.stop()
+        throw CueMCPError.invalid("The listener didn't start within 10 s.")
     }
 
     @Test func aSecondCueDoesntStealTheSocket() async throws {
         let (document, _) = try Decks.document()
         let path = socketPath()
-        let first = MCPSocketListener(server: CueMCPServer(host: FakeHost(document)), path: path)
-        let ready = AsyncStream<MCPSocketListener.State> { continuation in try? first.start { continuation.yield($0) } }
+        let first = try await startListener(document, at: path)
         defer { first.stop() }
-        for await state in ready { if case .listening = state { break } }
         let second = MCPSocketListener(server: CueMCPServer(host: FakeHost(document)), path: path)
-        let states = AsyncStream<MCPSocketListener.State> { continuation in try? second.start { continuation.yield($0) } }
-        for await state in states {
-            #expect(state == .failed("Another copy of Cue is already serving Claude."))
-            break
-        }
+        #expect(try await firstState(of: second) == .failed("Another copy of Cue is already serving Claude."))
+        second.stop()
+        #expect(FileManager.default.fileExists(atPath: path), "quitting the second Cue leaves the first one's socket")
     }
 
     /// The next newline-terminated line on `handle`, or "" after `timeout`.
@@ -161,6 +162,14 @@ struct SocketTests {
         }
         return ""
     }
+}
+
+/// The last state a listener reported, from its callback queue.
+final class StateBox: @unchecked Sendable {
+    private var state: MCPSocketListener.State?
+    private let lock = NSLock()
+    var value: MCPSocketListener.State? { lock.withLock { state } }
+    func set(_ new: MCPSocketListener.State) { lock.withLock { state = new } }
 }
 
 /// Bytes from a pipe, split into lines.
