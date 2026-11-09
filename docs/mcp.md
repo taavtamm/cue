@@ -33,6 +33,9 @@ Slide numbers are 1-based. Elements are targets: `{"cue_id": …}` or
 
 | Tool | What it does |
 |---|---|
+| create_deck | A new presentation (whole `html`, or Cue's blank deck), written as a new file inside the home folder, never over an existing one; opens and becomes the target |
+| list_decks / open_deck | Decks open and recent; open one (presentation files only: HTML, PowerPoint, Keynote, OpenDocument, PDF) and make it the target |
+| save_deck | Saves the target deck to its file (only when the user asks) |
 | get_outline | File, canvas, every slide's number, id, label, notes, builds, live content |
 | get_slide_html | One slide's HTML as written (large images as `CUE-IMAGE-…` placeholders) |
 | get_selection | What the user selected: slide, tag, cue_id, path, start tag, computed styles |
@@ -98,24 +101,31 @@ change set; in the undo history it may be several steps.
 
 ## The Ask bar
 
-Typing in Cue's Ask bar posts a request. A Claude Code session that runs the
-instruction from Settings › Claude ("call next_request in a loop…") takes it,
-does the work with the tools above, and calls `complete_request`; the bar shows
-Waiting for Claude… → Claude is working… → Claude's summary.
+The bar under the slide is the agent's status line: "Agent not connected",
+"Claude Code connected · ready", "Reading slide 3…", "Editing slide 3 · …",
+then what changed, with Undo. The user talks to their agent in its own app.
 
-If the connected client declares MCP **sampling**, Cue serves the request
-itself: it sends the request, outline, selection and slide HTML through
-`sampling/createMessage` and asks for one JSON plan of tool calls, which it
-runs (edit tools only). The SDK (0.12.1) can't pass tool definitions with
-sampling, hence the single structured reply. Claude's apps don't seem to offer
-sampling yet, so in practice the `next_request` loop is the path.
+Cue's queue of typed requests is still served for clients that want it:
+`next_request` waits for a request and `complete_request` reports back. If an
+approved client declares MCP **sampling**, Cue can also serve a request itself
+through `sampling/createMessage`, asking for one JSON plan of edit-tool calls.
+The SDK (0.12.1) can't pass tool definitions with sampling, hence the single
+structured reply.
 
 ## Security
 
 - Local only: a Unix socket in a 0700 folder, the socket itself 0600, so other
   macOS accounts can't connect. No network port.
 - Every client is approved by the user once; denied clients get a clear error.
-- Writes never save; each is one change the user (or Claude) can undo.
+  This is a consent prompt for processes running as the same user, not
+  authentication: approval is keyed on the name the client sends in
+  `initialize`, which any local process could claim. Calls before
+  `initialize` are refused.
+- Edits never save by themselves; each is one change the user (or Claude) can
+  undo. Only `save_deck`, which Claude is told to use when the user asks,
+  writes the target deck to its file, and `create_deck` writes new files only.
+- `open_deck` opens presentation files only (by extension, after resolving
+  symlinks), so Claude can't read or rewrite other files by opening them as a deck.
 - Claude can't reach the network through the deck: `add_font` only writes the
   `<link>`, and the deck's sandbox still asks the user to allow the font hosts.
   `insert_image` with a `url` is Cue downloading on Claude's request (https only,
@@ -128,10 +138,11 @@ sampling yet, so in practice the `next_request` loop is the path.
 1. Launch Cue, open fixtures/demo-deck.html (a copy). Settings › Claude shows "Ready".
 2. `claude mcp add cue -- "<Cue.app>/Contents/MacOS/cue-mcp"`, start `claude`, ask it to call get_outline.
    Cue shows the approval banner; Allow; the call succeeds.
-3. The brief's test: in Claude Code, "make slide 3's headline shorter". Within about a second the slide
-   changes and the change banner appears with before/after. Undo restores the headline; Accept keeps it.
-4. Paste the Ask-bar instruction into Claude Code, then type a request in Cue's Ask bar: the bar shows
-   Waiting → Working → Claude's summary, and the change banner appears.
+3. In Claude Code, "make slide 3's headline shorter". Within about a second the slide changes and the
+   Ask bar shows what changed. Undo restores the headline.
+4. Ask Claude to "make a three-slide deck about tide pools": create_deck opens a new window with it, and
+   the Ask bar animates while Claude edits.
 5. render_slide returns a picture of the slide (Claude can describe it).
 6. Settings › Claude › Add to Claude Desktop, restart Claude Desktop, repeat step 3 there.
-7. Quit Cue while Claude is connected: the helper exits; reopen and reconnect.
+7. Quit Cue while Claude is connected: the helper keeps running and answers "Cue isn't running";
+   reopen Cue and the next call works without reconnecting.

@@ -3,7 +3,7 @@ import CueUI
 import SwiftUI
 
 /// The current slide's HTML, scrolled to the selected element. Read-only
-/// for now: editing HTML directly comes in a later milestone. Long data:
+/// (edits go through the canvas, the inspector or Claude). Long data:
 /// URLs (inline images) are shortened here so the markup stays readable.
 struct HTMLSourcePanel: View {
     let session: EditorSession
