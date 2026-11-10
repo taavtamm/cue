@@ -38,6 +38,16 @@ extension NSWindow {
         let host = NSHostingView(rootView: root.background(CueGlassTint()).ignoresSafeArea())
         host.sizingOptions = sizing
         glass.contentView = host
+        // Pinned to the window: otherwise, without size-driving options, the
+        // content keeps the ideal size it had when made (every slide in the
+        // sidebar laid out) and spills past the bottom of the window.
+        host.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            host.leadingAnchor.constraint(equalTo: glass.leadingAnchor),
+            host.trailingAnchor.constraint(equalTo: glass.trailingAnchor),
+            host.topAnchor.constraint(equalTo: glass.topAnchor),
+            host.bottomAnchor.constraint(equalTo: glass.bottomAnchor),
+        ])
         contentView = glass
         hidesToolbarInFullScreen()
     }
