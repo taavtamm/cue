@@ -13,8 +13,12 @@ extension NSWindow {
     /// draws its own toolbar in this band (ignoring the top safe area).
     public static let cueToolbarHeight: CGFloat = 52
 
+    /// `sizing`: how the content may size the window. Windows that size to
+    /// their content (Settings, Welcome) keep the standard options; the deck
+    /// window passes `.minSize`, so content growing (a banner sliding in)
+    /// never makes the window itself grow.
     @MainActor
-    public func useCueGlass(_ root: some View) {
+    public func useCueGlass(_ root: some View, sizing: NSHostingSizingOptions = .standardBounds) {
         styleMask.insert(.fullSizeContentView)
         titlebarAppearsTransparent = true
         titleVisibility = .hidden
@@ -31,7 +35,9 @@ extension NSWindow {
         let glass = NSGlassEffectView()
         glass.cornerRadius = 0
         glass.tintColor = NSColor(red: 12 / 255, green: 10 / 255, blue: 16 / 255, alpha: 0.55)
-        glass.contentView = NSHostingView(rootView: root.background(CueGlassTint()).ignoresSafeArea())
+        let host = NSHostingView(rootView: root.background(CueGlassTint()).ignoresSafeArea())
+        host.sizingOptions = sizing
+        glass.contentView = host
         contentView = glass
         hidesToolbarInFullScreen()
     }

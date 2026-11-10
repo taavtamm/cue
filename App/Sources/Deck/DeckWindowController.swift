@@ -37,7 +37,7 @@ final class DeckWindowController: NSWindowController, NSWindowDelegate {
         window.title = session.title
         window.representedURL = deck.fileURL
         window.delegate = self
-        window.useCueGlass(makeEditor())
+        window.useCueGlass(makeEditor(), sizing: .minSize)
         if window.frame.origin == .zero { window.center() }
         wireUp()
         keyRouter = EditorKeyRouter(window: window, session: session, actions: .init(
