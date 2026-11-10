@@ -28,14 +28,20 @@ final class ClaudeActivity {
     /// Clients with a next_request open: they'll take an Ask-bar request at once.
     var listeningClients: Set<String> { Set(running.filter { $0.kind == .waiting }.map(\.client)) }
 
+    /// When the agent last read, rendered or edited: a background deck window
+    /// keeps playing for a while after, so the user sees the result live.
+    private(set) var lastWorked: Date?
+
     func started(_ entry: Entry) {
         running.append(entry)
+        if entry.kind != .waiting { lastWorked = Date() }
     }
 
     func finished(_ id: UUID) {
         guard let index = running.firstIndex(where: { $0.id == id }) else { return }
         let entry = running.remove(at: index)
         guard entry.kind != .waiting else { return }
+        lastWorked = Date()
         lingering = entry
         Task { [weak self] in
             try? await Task.sleep(for: Self.linger)

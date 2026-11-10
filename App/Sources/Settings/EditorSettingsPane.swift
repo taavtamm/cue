@@ -21,6 +21,11 @@ struct EditorSettingsPane: View {
                 .frame(width: 96)
             }
         }
+        SettingsGroup("Live content", footnote: "Animated slides keep the GPU busy. Paused slides resume when you "
+                      + "come back to Cue, and play while Claude is editing.") {
+            SettingsSwitch("Pause live slides while Cue is in the background",
+                           isOn: $settings.pausesLiveContentInBackground)
+        }
         SettingsGroup("Images", footnote: "The deck stays one HTML file you can send or open in any browser.") {
             SettingsRow("Inserted images", detail: "Stored inside the deck as data, not in a separate folder") {
                 Pill("Embedded in the HTML file", .status(dot: CueTheme.success))

@@ -32,6 +32,12 @@ public final class CueSettings {
     /// Claude's edits are kept immediately, each still undoable on its own.
     /// Turned off, every edit waits for Accept or Undo.
     public var autoAcceptClaudeEdits: Bool { didSet { store(autoAcceptClaudeEdits, .autoAcceptClaude) } }
+    /// Pause the editor's live slide while another app is active (Settings ›
+    /// Editor). On by default: heavy decks otherwise keep the GPU busy behind
+    /// other windows. It still plays while Claude is editing.
+    public var pausesLiveContentInBackground: Bool {
+        didSet { store(pausesLiveContentInBackground, .pausesInBackground) }
+    }
 
     @ObservationIgnored private let defaults: UserDefaults
 
@@ -46,6 +52,7 @@ public final class CueSettings {
         defaultFontSize = defaults.object(forKey: Key.fontSize.rawValue) as? Double ?? Defaults.fontSize
         // On by default: Claude's edits are kept at once, each undoable on its own.
         autoAcceptClaudeEdits = defaults.object(forKey: Key.autoAcceptClaude.rawValue) as? Bool ?? true
+        pausesLiveContentInBackground = defaults.object(forKey: Key.pausesInBackground.rawValue) as? Bool ?? true
     }
 
     /// Back to Cue's defaults (the save folder is cleared too).
@@ -58,6 +65,7 @@ public final class CueSettings {
         defaultFontFamily = Self.systemFont
         defaultFontSize = Defaults.fontSize
         autoAcceptClaudeEdits = true
+        pausesLiveContentInBackground = true
     }
 
     /// UserDefaults keys. `keepsAnimationsInSync` keeps the key the Displays
@@ -71,6 +79,7 @@ public final class CueSettings {
         case fontFamily = "cue.defaultFontFamily"
         case fontSize = "cue.defaultFontSize"
         case autoAcceptClaude = "cue.autoAcceptClaudeEdits"
+        case pausesInBackground = "cue.pausesLiveContentInBackground"
     }
 
     private func store(_ value: Any?, _ key: Key) {

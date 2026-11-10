@@ -22,6 +22,9 @@ final class DeckWindowController: NSWindowController, NSWindowDelegate {
     private lazy var displays = DisplayCoordinator(sidecarURL: deck.sidecarURL)
     private var displaysWindow: DisplaysWindowController?
     private lazy var network = DeckNetworkAccess(document: deck)
+    private lazy var performance = DeckPerformanceWarning(session: session)
+    /// Plays or pauses the live slide: visibility, the user's switch, the background setting, Claude.
+    private lazy var playback = LivePlaybackPolicy { [weak self] paused in self?.session.canvas.setPaused(paused) }
 
     init(deck: DeckDocument) {
         session = EditorSession(document: deck)
@@ -55,12 +58,14 @@ final class DeckWindowController: NSWindowController, NSWindowDelegate {
             session: session, thumbnails: thumbnails, actions: makeActions(),
             networkBanner: AnyView(VStack(spacing: 0) {
                 NetworkAccessBanner(access: network)
+                PerformanceBanner(warning: performance)
                 ClaudeApprovalBanner(connection: .shared)
             })
         )
     }
 
     private func wireUp() {
+        followPlaybackInputs()
         session.onAsk = { [weak self] request in // The Ask bar: hand it to Claude.
             guard let self else { return }
             ClaudeConnection.shared.send(request, from: self.session)
@@ -171,10 +176,11 @@ final class DeckWindowController: NSWindowController, NSWindowDelegate {
             guard let self else { return }
             self.show = nil
             self.session.showSlide(lastSlide)
-            self.session.setPlayingLive(self.session.isPlayingLive)
+            self.playback.isShowing = false
             self.window?.makeKeyAndOrderFront(nil)
         }
         self.show = show
+        playback.isShowing = true
         session.canvas.setPaused(true) // Only the show animates while presenting.
         show.start()
     }
@@ -185,13 +191,24 @@ final class DeckWindowController: NSWindowController, NSWindowDelegate {
     }
 
     /// A covered or minimised editor pauses its live slide (nobody can see
-    /// it); it resumes, as the user left it, when visible again. A window
-    /// that's visible but not active keeps playing: the user may be watching
-    /// Cue while their agent edits from another app.
+    /// it); it resumes, as the user left it, when visible again. See
+    /// `LivePlaybackPolicy` for the rest.
     func windowDidChangeOcclusionState(_ notification: Notification) {
-        guard show == nil, let window else { return }
-        let visible = window.occlusionState.contains(.visible)
-        session.canvas.setPaused(!visible || !session.isPlayingLive)
+        guard let window else { return }
+        playback.isVisible = window.occlusionState.contains(.visible)
+    }
+
+    /// Re-applies the playback policy whenever what it reads changes: the
+    /// Playing live switch, Claude's activity, the background setting.
+    private func followPlaybackInputs() {
+        withObservationTracking {
+            playback.isPlayingLive = session.isPlayingLive
+            _ = ClaudeConnection.shared.activity.lastWorked
+            _ = CueSettings.shared.pausesLiveContentInBackground
+            playback.update()
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.followPlaybackInputs() }
+        }
     }
 
     func windowWillClose(_ notification: Notification) {
