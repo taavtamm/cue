@@ -34,6 +34,8 @@ extension ToolRunner {
             return try json(report)
         case "render_deck":
             return try await renderDeck(args)
+        case "get_performance":
+            return try await performance(args)
         default:
             return nil
         }

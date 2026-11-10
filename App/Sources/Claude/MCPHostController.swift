@@ -44,6 +44,10 @@ final class MCPHostController: DeckHost, @unchecked Sendable {
 
     func renderSlide(_ slide: Int, build: Int?) async throws -> Data { try await renderOnMain(slide, build: build) }
 
+    func performance(of slides: [Int]) async throws -> (loads: [Int: SlideLoad], live: Set<Int>) {
+        try await performanceOnMain(slides)
+    }
+
     func approval(for client: String) async -> ClientApproval.Decision {
         let decision = approvals.decision(for: client)
         if decision == .pending { await MainActor.run { askUser(client) } }
@@ -72,6 +76,19 @@ final class MCPHostController: DeckHost, @unchecked Sendable {
 
     @MainActor private func renderOnMain(_ slide: Int, build: Int?) async throws -> Data {
         try await snapshotter.png(of: session().document, slide: slide, build: build)
+    }
+
+    /// The editor's live measurements where it has them (embeds running),
+    /// the rest measured off screen.
+    @MainActor private func performanceOnMain(_ slides: [Int]) async throws -> (loads: [Int: SlideLoad], live: Set<Int>) {
+        let session = try session()
+        var loads = session.loads.filter { slides.contains($0.key) }
+        let live = Set(loads.keys)
+        let rest = slides.filter { loads[$0] == nil }
+        if !rest.isEmpty {
+            loads.merge(try await snapshotter.loads(of: session.document, slides: rest)) { measured, _ in measured }
+        }
+        return (loads, live)
     }
 
     @MainActor static func selection(in session: EditorSession?) -> SelectionInfo? {

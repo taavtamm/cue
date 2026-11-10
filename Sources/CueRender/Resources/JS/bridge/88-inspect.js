@@ -90,6 +90,52 @@ cue.inspect = (() => {
     return { tracks, embeds };
   }
 
+  /** The deck's redraw requests so far (see page-guard.js), or null if unknown. */
+  function frameRequests() {
+    let count = null;
+    const listen = (event) => { count = Number(event.detail) || 0; };
+    window.addEventListener('cue-frame-requests', listen);
+    window.dispatchEvent(new Event('cue-frame-requests?'));
+    window.removeEventListener('cue-frame-requests', listen);
+    return count;
+  }
+
+  function isShown(element) {
+    const box = element.getBoundingClientRect();
+    if (box.width < 2 || box.height < 2) return false;
+    const style = getComputedStyle(element);
+    return style.visibility !== 'hidden' && Number(style.opacity) > 0;
+  }
+
+  /**
+   * What keeps the GPU busy on a slide: visible backdrop blurs, animations
+   * that never end, live embeds, and the deck's own redraws per second
+   * (measured over one second).
+   */
+  async function load(slideSelector, index) {
+    const slide = slideAt(slideSelector, index);
+    if (!slide) return null;
+    const before = frameRequests();
+    const started = performance.now();
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    const after = frameRequests();
+    const seconds = (performance.now() - started) / 1000;
+    let blurs = 0;
+    for (const element of slide.querySelectorAll('*')) {
+      if (element.closest('[data-cue-owned]')) continue;
+      const style = getComputedStyle(element);
+      const backdrop = style.backdropFilter || style.webkitBackdropFilter || 'none';
+      if (backdrop !== 'none' && isShown(element)) blurs += 1;
+    }
+    const loops = animationsOn(slide).filter((a) => a.effect.getComputedTiming().iterations === Infinity).length;
+    return {
+      blurs,
+      loops,
+      embeds: slide.querySelectorAll('iframe[srcdoc], iframe[src], video, canvas').length,
+      redraws: before === null || after === null ? 0 : Math.round((after - before) / Math.max(seconds, 0.5)),
+    };
+  }
+
   /** Plays the slide's animations again from their start. */
   function replay(slideSelector, index) {
     for (const animation of animationsOn(slideAt(slideSelector, index))) {
@@ -143,5 +189,5 @@ cue.inspect = (() => {
     }
   }
 
-  return { element, animations, replay, embedAt, setEmbedsInteractive };
+  return { element, animations, load, replay, embedAt, setEmbedsInteractive };
 })();

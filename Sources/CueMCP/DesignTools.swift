@@ -53,5 +53,13 @@ enum DesignTools {
             + "to review a redesign at a glance. Up to 24 slides.",
             ["slides": ["type": "array", "items": ["type": "integer"], "description": "1-based slides; default all."],
              "columns": Catalog.integer("Columns, default by count.")], readOnly: true),
+        Catalog.tool("get_performance", "What keeps the GPU busy on each slide while it plays: visible "
+            + "backdrop-filter blurs, animations that never end, live embeds/video/canvas, and the deck's own "
+            + "requestAnimationFrame calls per second, with Cue's verdict and reasons. Slides the user has shown "
+            + "in the editor are measured live; the rest off screen, where embeds don't start and redraws can't be "
+            + "counted (measured_live false). "
+            + "Takes about two seconds per slide. Use it before and after making a deck lighter.",
+            ["slides": ["type": "array", "items": ["type": "integer"], "description": "1-based slides; default all."]],
+            readOnly: true),
     ]
 }

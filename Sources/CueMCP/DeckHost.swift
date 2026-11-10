@@ -22,6 +22,9 @@ public protocol DeckHost: Sendable {
     func revert(_ id: String) async throws
     /// A PNG of the slide as rendered, at its final build unless `build` is given.
     func renderSlide(_ slide: Int, build: Int?) async throws -> Data
+    /// What keeps the GPU busy on each of `slides` (0-based), and which of
+    /// them were measured live in the editor rather than off screen.
+    func performance(of slides: [Int]) async throws -> (loads: [Int: SlideLoad], live: Set<Int>)
     /// Whether this client may use Cue's tools. Asking the user is the host's job.
     func approval(for client: String) async -> ClientApproval.Decision
     /// Ask-bar requests waiting for Claude.
@@ -60,6 +63,9 @@ extension DeckHost {
     public func saveDeck() async throws -> DeckSummary { throw CueMCPError.invalid("This Cue can't save decks.") }
     public func newDeckFolder() async -> URL { NewDeckLocation.defaultFolder(saveFolder: nil) }
     public func deckRoot() async -> URL { FileManager.default.homeDirectoryForCurrentUser }
+    public func performance(of slides: [Int]) async throws -> (loads: [Int: SlideLoad], live: Set<Int>) {
+        throw CueMCPError.invalid("This Cue can't measure slides.")
+    }
 }
 
 /// The selection, as Claude sees it in `get_selection`.

@@ -19,6 +19,8 @@ public struct CueSidecar: Sendable, Equatable, Codable {
     public var rehearsalTimings: [String: Double] = [:]
     /// How long the talk should take, in seconds. Nil = estimate from slides.
     public var targetDuration: Double?
+    /// The user chose Never on the heavy-deck warning for this deck.
+    public var hidesPerformanceWarning = false
 
     public init() {}
 
@@ -28,6 +30,7 @@ public struct CueSidecar: Sendable, Equatable, Codable {
         displayRoles = try container.decodeIfPresent([String: [String: String]].self, forKey: .displayRoles) ?? [:]
         rehearsalTimings = try container.decodeIfPresent([String: Double].self, forKey: .rehearsalTimings) ?? [:]
         targetDuration = try container.decodeIfPresent(Double.self, forKey: .targetDuration)
+        hidesPerformanceWarning = try container.decodeIfPresent(Bool.self, forKey: .hidesPerformanceWarning) ?? false
     }
 
     /// `deck.cue.json` next to `deck.html`.

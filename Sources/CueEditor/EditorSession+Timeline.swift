@@ -16,4 +16,17 @@ extension EditorSession {
     }
 
     public var timeline: TimelineLayout { TimelineLayout(animations) }
+
+    /// Measures the shown slide's GPU load once it has settled (2 s), unless
+    /// the user has moved on by then.
+    func measureLoadSoon() {
+        let index = slide
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(2))
+            guard let self, self.slide == index else { return }
+            guard let load = try? await self.canvas.load(onSlide: index, slideSelector: self.structure.slideSelector),
+                  self.slide == index else { return }
+            self.loads[index] = load
+        }
+    }
 }

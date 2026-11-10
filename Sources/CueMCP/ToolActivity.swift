@@ -29,7 +29,7 @@ public struct ToolActivity: Sendable, Equatable {
     /// Every tool, by what it does to the deck.
     public static func kind(forTool tool: String) -> Kind {
         switch tool {
-        case "render_slide", "render_deck": .rendering
+        case "render_slide", "render_deck", "get_performance": .rendering
         case "next_request": .waiting
         case "complete_request", "list_changes", "list_decks", "open_deck": .reading
         default: tool.hasPrefix("get_") ? .reading : .editing

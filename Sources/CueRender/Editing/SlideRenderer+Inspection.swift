@@ -43,6 +43,17 @@ extension SlideRenderer {
         return SlideAnimations(tracks: tracks, embedCount: info["embeds"] as? Int ?? 0)
     }
 
+    /// What keeps the GPU busy on the slide (takes about a second: redraws are counted over it).
+    public func load(onSlide index: Int, slideSelector: String) async throws -> SlideLoad? {
+        let value = try await callInBridge(
+            "return await window.__cue.inspect.load(selector, index)",
+            arguments: ["selector": slideSelector, "index": index]
+        )
+        guard let info = value as? [String: Any] else { return nil }
+        return SlideLoad(blurs: info["blurs"] as? Int ?? 0, loopingAnimations: info["loops"] as? Int ?? 0,
+                         embeds: info["embeds"] as? Int ?? 0, redrawsPerSecond: info["redraws"] as? Int ?? 0)
+    }
+
     public func replayAnimations(onSlide index: Int, slideSelector: String) async throws {
         _ = try await callInBridge(
             "window.__cue.inspect.replay(selector, index)", arguments: ["selector": slideSelector, "index": index]

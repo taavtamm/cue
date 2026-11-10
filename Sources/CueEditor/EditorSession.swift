@@ -19,6 +19,9 @@ public final class EditorSession {
     /// Why the last edit was refused, in plain words. Cleared by the next edit.
     public var lastError: String?
     public internal(set) var animations = SlideAnimations(tracks: [], embedCount: 0)
+    /// What keeps the GPU busy, per slide shown so far (0-based). Measured
+    /// again each time a slide is shown, so a lighter deck clears its warning.
+    public internal(set) var loads: [Int: SlideLoad] = [:]
     /// The live embed taking clicks after a double-click, in canvas coordinates.
     public internal(set) var interactiveEmbed: CGRect?
     public internal(set) var inlineEdit: InlineEditState?
@@ -89,6 +92,7 @@ public final class EditorSession {
         slide = target
         canvas.show(ShowPosition(slide: target), finished: true)
         Task { await refreshAnimations() }
+        measureLoadSoon()
     }
 
     /// Play or pause live content (Web Animations, media) on the canvas.
@@ -104,6 +108,7 @@ public final class EditorSession {
             Task {
                 await refreshSelection()
                 await refreshAnimations()
+                measureLoadSoon()
             }
         case .liveContent(let slides):
             liveSlides.formUnion(slides)

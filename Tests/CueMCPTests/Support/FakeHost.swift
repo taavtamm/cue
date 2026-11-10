@@ -12,6 +12,12 @@ actor FakeHost: DeckHost {
 
     init(_ document: DeckDocument) { self.document = document }
 
+    var loads: [Int: SlideLoad] = [:]
+    func setLoads(_ loads: [Int: SlideLoad]) { self.loads = loads }
+    func performance(of slides: [Int]) async throws -> (loads: [Int: SlideLoad], live: Set<Int>) {
+        (loads.filter { slides.contains($0.key) }, [0])
+    }
+
     func setDecision(_ decision: ClientApproval.Decision) { self.decision = decision }
     func select(_ selection: SelectionInfo?) { selected = selection }
 

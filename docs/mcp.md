@@ -57,6 +57,7 @@ Slide numbers are 1-based. Elements are targets: `{"cue_id": …}` or
 | get_embeds / edit_embed | A slide's live web embeds (sandboxed HTML) and its transition |
 | set_transition | none, fade, push, magic (plays as fade) |
 | render_deck | Contact sheet PNG of up to 24 slides |
+| get_performance | What keeps the GPU busy per slide (blurs over moving content, endless animations, embeds, redraws per second) and why a slide counts as heavy. Live measurements from the editor where it has them, the rest off screen |
 
 Large images, stylesheets and scripts go to Claude as placeholders
 (`data:image/png;base64,CUE-IMAGE-<hash>`, `/* CUE-BLOCK-<hash>: … */`) and are

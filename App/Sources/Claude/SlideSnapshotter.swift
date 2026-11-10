@@ -24,6 +24,25 @@ final class SlideSnapshotter {
         return try await task.value
     }
 
+    /// What keeps the GPU busy on each slide, measured off screen (live
+    /// embeds don't start here). Queued behind pictures like any other use.
+    func loads(of document: DeckDocument, slides: [Int]) async throws -> [Int: SlideLoad] {
+        let before = previous
+        let task = Task { @MainActor in
+            await before?.value
+            let renderer = try await self.prepared(for: document)
+            var loads: [Int: SlideLoad] = [:]
+            for slide in slides {
+                renderer.show(ShowPosition(slide: slide, build: 0), finished: true)
+                try await Task.sleep(for: .milliseconds(600)) // Its animations start.
+                loads[slide] = try await renderer.load(onSlide: slide, slideSelector: document.structure.slideSelector)
+            }
+            return loads
+        }
+        previous = Task { _ = try? await task.value }
+        return try await task.value
+    }
+
     private func picture(of document: DeckDocument, slide: Int, build: Int?) async throws -> Data {
         let renderer = try await prepared(for: document)
         renderer.show(ShowPosition(slide: slide, build: build ?? 0), finished: build == nil)

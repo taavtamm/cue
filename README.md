@@ -23,6 +23,10 @@ the HTML file.
 - **Works with Claude, on your own plan.** Cue runs a local MCP server. Claude Code
   or Claude Desktop connects to it and can edit, restyle or rebuild the deck while you
   watch. Cue never signs in to Claude itself.
+- **Warns about heavy decks.** Cue measures what keeps the GPU busy as slides play
+  (blurs over moving content, endless animations, embeds, scripts redrawing every
+  frame) and hands you a prompt so your AI can make the deck lighter. Live slides
+  pause while Cue is in the background.
 - **Exports** to editable PowerPoint (text, pictures and simple shapes stay editable;
   animations become static), PDF, or one PNG per slide.
 - **Keeps decks contained.** Deck JavaScript runs only inside WebKit, can read only
