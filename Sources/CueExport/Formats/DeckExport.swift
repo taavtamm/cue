@@ -55,7 +55,11 @@ public enum DeckExport {
             try await renderer.show(index)
             let layout = try await renderer.layout(index)
             await renderer.renderer.clearExportMarks()
+            try await renderer.renderer.flattenSeeThroughGradients(
+                slide: index, slideSelector: document.structure.slideSelector
+            )
             let data = try await renderer.renderer.canvasPDF(layout.canvas)
+            await renderer.renderer.restoreFlattened()
             if let page = PDFDocument(data: data)?.page(at: 0) { output.insert(page, at: output.pageCount) }
         }
         progress(renderer.slideCount, renderer.slideCount)
