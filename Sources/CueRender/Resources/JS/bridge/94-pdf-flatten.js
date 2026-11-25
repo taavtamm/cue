@@ -1,19 +1,21 @@
 // PDF export: WebKit writes CSS gradients into a PDF without their
 // transparency, so a gradient that fades into a photo comes out solid and
-// hides it, and a gradient mask turns its box black.
+// hides it, and a gradient mask turns its box black. Live embeds (sandboxed
+// frames, drawn by another process) and videos come out black too.
 //
 // `find` lists the boxes on a slide that would come out wrong: a see-through
-// gradient background, or a gradient mask. For each, Swift calls `isolate`,
-// takes a see-through picture of just that box, and `replace` puts the
-// picture in as the box's background. A background keeps the box's text and
-// borders real; a masked box becomes its picture, contents and all.
-// `restore` undoes everything.
+// gradient background, a gradient mask, an embed or a video. For each, Swift
+// calls `isolate`, takes a see-through picture of just that box, and `replace`
+// puts the picture in. A background keeps the box's text and borders real; a
+// masked box becomes its picture, contents and all; an embed is hidden under
+// a picture of itself. `restore` undoes everything.
 
 cue.pdfFlatten = (() => {
   const MARK = 'data-cue-pdf-flat';
   const SAVED = 'data-cue-pdf-style';
   const ISOLATE_ID = 'cue-pdf-isolate';
   const FLAT_ID = 'cue-pdf-flat';
+  const ADDED = 'data-cue-pdf-added';
   let items = [];
 
   function canvasOf(slideSelector, index) {
@@ -33,7 +35,8 @@ cue.pdfFlatten = (() => {
     return /\/\s*0?\.\d+\s*\)/.test(image); // color(… / 0.5) and friends
   }
 
-  function kindOf(style) {
+  function kindOf(el, style) {
+    if (el.matches('iframe, video')) return 'embed';
     const mask = style.maskImage || style.webkitMaskImage || 'none';
     if (mask.includes('gradient(')) return 'whole';
     if (seeThroughGradient(style.backgroundImage)) return 'background';
@@ -67,9 +70,11 @@ cue.pdfFlatten = (() => {
     const bounds = canvas.getBoundingClientRect();
     const found = [];
     for (const el of [canvas, ...canvas.querySelectorAll('*')]) {
-      if (!(el instanceof HTMLElement) || el.closest('[data-cue-owned]')) continue;
-      if (found.some((item) => item.kind === 'whole' && item.el.contains(el))) continue;
-      const kind = kindOf(getComputedStyle(el));
+      if (!(el instanceof HTMLElement)) continue;
+      // Cue's own parts stay out, except the frames live embeds play in.
+      if (el.closest('[data-cue-owned]') && !el.matches('iframe')) continue;
+      if (found.some((item) => item.kind !== 'background' && item.el.contains(el))) continue;
+      const kind = kindOf(el, getComputedStyle(el));
       if (!kind || !shows(el)) continue;
       const rect = el.getBoundingClientRect();
       // Rotated or skewed boxes: the picture wouldn't line up with the box.
@@ -120,7 +125,9 @@ cue.pdfFlatten = (() => {
     const el = item.el;
     if (!el.hasAttribute(SAVED)) el.setAttribute(SAVED, el.getAttribute('style') || '');
     const p = item.place;
-    el.style.setProperty('background', `url("${url}") ${p.x}px ${p.y}px / ${p.width}px ${p.height}px no-repeat border-box border-box`, 'important');
+    const picture = `url("${url}") ${p.x}px ${p.y}px / ${p.width}px ${p.height}px no-repeat border-box border-box`;
+    if (item.kind === 'embed') { cover(el, picture); return; }
+    el.style.setProperty('background', picture, 'important');
     if (item.kind === 'whole') {
       el.style.setProperty('mask-image', 'none', 'important');
       el.style.setProperty('-webkit-mask-image', 'none', 'important');
@@ -132,8 +139,22 @@ cue.pdfFlatten = (() => {
     }
   }
 
+  /** Hides an embed under a box painting its picture, in the same place. */
+  function cover(el, picture) {
+    if (!el.offsetParent) return; // Fixed to the window: leave it as it is.
+    const style = getComputedStyle(el);
+    const box = document.createElement('div');
+    box.setAttribute(ADDED, '');
+    box.style.cssText = `position:absolute;left:${el.offsetLeft}px;top:${el.offsetTop}px;`
+      + `width:${el.offsetWidth}px;height:${el.offsetHeight}px;margin:0;pointer-events:none;`
+      + `z-index:${style.zIndex};border-radius:${style.borderRadius};background:${picture}`;
+    el.after(box);
+    el.style.setProperty('visibility', 'hidden', 'important');
+  }
+
   function restore() {
     for (const id of [ISOLATE_ID, FLAT_ID]) document.getElementById(id)?.remove();
+    for (const el of document.querySelectorAll(`[${ADDED}]`)) el.remove();
     for (const el of document.querySelectorAll(`[${SAVED}]`)) {
       const saved = el.getAttribute(SAVED);
       if (saved) el.setAttribute('style', saved); else el.removeAttribute('style');

@@ -3,12 +3,13 @@ import CueCore
 import WebKit
 
 /// WebKit writes CSS gradients into a PDF without their transparency: a
-/// gradient fading into a photo comes out solid, a gradient mask black.
-/// Before a slide becomes a PDF page, each such box gets a picture of itself
-/// as its background (see `94-pdf-flatten.js`); text elsewhere stays text.
+/// gradient fading into a photo comes out solid, a gradient mask black, and
+/// so does one inside a live embed. Before a slide becomes a PDF page, each
+/// such box (and each embed or video) gets a picture of itself in its place
+/// (see `94-pdf-flatten.js`); text elsewhere stays text.
 extension SlideRenderer {
-    /// Swaps the slide's see-through gradients and gradient masks for
-    /// pictures. Returns how many boxes changed. Undo with `restoreFlattened`.
+    /// Swaps the slide's see-through gradients, gradient masks, embeds and
+    /// videos for pictures. Returns how many changed. Undo with `restoreFlattened`.
     @discardableResult
     public func flattenSeeThroughGradients(slide index: Int, slideSelector: String) async throws -> Int {
         let value = try await callInBridge(

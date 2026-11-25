@@ -7,7 +7,8 @@ import Testing
 
 /// A PDF page looks like the slide: backgrounds drawn with CSS (the slide's
 /// own, a panel's, a gradient) are in it, and see-through gradients and
-/// gradient masks stay see-through (WebKit's PDF alone makes them solid).
+/// gradient masks stay see-through (WebKit's PDF alone makes them solid),
+/// and live embeds show what they draw.
 @Suite("PDF backgrounds", .serialized)
 @MainActor
 struct PDFBackgroundTests {
@@ -30,6 +31,28 @@ struct PDFBackgroundTests {
     <div class="photo"></div><div class="veil">Fades into the photo</div><div class="masked"></div></section>
     </body></html>
     """
+
+    /// An embed fading out with a gradient mask (a common animated
+    /// background) is beyond the page's reach; the page gets a picture of it.
+    @Test func embedsAreDrawn() async throws {
+        let frame = "<body style='margin:0;height:100vh;background:transparent'><div style='height:100%;"
+            + "background:rgb(30,160,60);-webkit-mask-image:linear-gradient(90deg,#000 50%,transparent)'></div></body>"
+        let document = try ExportFixtures.deck("""
+        <!doctype html><html><body style="margin:0"><section style="width:1920px;height:1080px;position:relative;
+        background:rgb(244,242,238)"><h1>Embed</h1><iframe sandbox="allow-scripts" srcdoc="\(frame)"
+        style="position:absolute;left:960px;top:0;width:960px;height:1080px;border:0"></iframe></section></body></html>
+        """)
+        let url = try ExportFixtures.folder().appending(path: "embed.pdf")
+        _ = try await DeckExport.pdf(document, to: url)
+        let page = try #require(PDFDocument(url: url)?.page(at: 0))
+        let bitmap = try #require(Self.bitmap(page))
+        let embed = try #require(Self.color(bitmap, x: 0.6, y: 0.5))
+        #expect(embed.greenComponent > 0.5 && embed.redComponent < 0.3, "the embed: \(embed)")
+        let faded = try #require(Self.color(bitmap, x: 0.99, y: 0.5))
+        #expect(faded.brightnessComponent > 0.9, "its faded edge shows the slide, not black: \(faded)")
+        let paper = try #require(Self.color(bitmap, x: 0.25, y: 0.5))
+        #expect(paper.brightnessComponent > 0.9, "the slide around it: \(paper)")
+    }
 
     @Test func backgroundsAreDrawn() async throws {
         let document = try ExportFixtures.deck(Self.deck)
